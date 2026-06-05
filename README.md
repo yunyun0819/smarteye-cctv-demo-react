@@ -1,5 +1,7 @@
 # React + Vite
 
+처음 실행하는 경우 Vite다운을 위해 npm instll 이후 npm run dev를 통해 자신의 개발 환경에서 테스트 해주세요.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
