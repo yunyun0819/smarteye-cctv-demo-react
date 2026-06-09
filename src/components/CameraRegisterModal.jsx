@@ -2,8 +2,15 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   X, Camera, Wifi, CheckCircle, XCircle,
-  Loader, ChevronRight, ChevronLeft,
+  Loader, ChevronRight, ChevronLeft, Users, Car, AlertTriangle,
+  VolumeX, Maximize2,
 } from 'lucide-react'
+
+const ZONES = ['ZONE-A', 'ZONE-B', 'ZONE-C', 'ZONE-D', 'ZONE-E']
+const ZONE_COLOR = {
+  'ZONE-A': '#00d4ff', 'ZONE-B': '#10b981',
+  'ZONE-C': '#f59e0b', 'ZONE-D': '#8b5cf6', 'ZONE-E': '#64748b',
+}
 
 const CAMERA_TYPES = [
   {
@@ -60,13 +67,69 @@ const inputStyle = {
   fontFamily: 'inherit',
 }
 
-export default function CameraRegisterModal({ onClose, onSave }) {
+const gradients = [
+  'linear-gradient(135deg, #0a1628 0%, #0d2040 50%, #091520 100%)',
+  'linear-gradient(135deg, #0a1a14 0%, #0d2a20 50%, #091510 100%)',
+  'linear-gradient(135deg, #1a1208 0%, #2a1e0d 50%, #150e05 100%)',
+]
+
+function CameraPreview({ camName, zone }) {
+  const now = new Date().toLocaleTimeString('ko-KR', { hour12: false }).slice(0, 5)
+  return (
+    <div style={{ marginTop: 4, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(16,185,129,0.3)', position: 'relative' }}>
+      <div style={{ position: 'relative', background: gradients[0], aspectRatio: '16/9', overflow: 'hidden' }}>
+        {/* 스캔라인 */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px)', pointerEvents: 'none' }} />
+        {/* 그리드 */}
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px)', backgroundSize: '40px 40px', pointerEvents: 'none' }} />
+
+        {/* 상단 바 */}
+        <div style={{ position: 'absolute', top: 8, left: 8, right: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 10, color: '#e2e8f0', fontWeight: 600, background: 'rgba(0,0,0,0.55)', padding: '2px 8px', borderRadius: 4 }}>{camName || '새 카메라'}</span>
+          <span style={{ fontSize: 9, color: '#10b981', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '2px 7px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', display: 'inline-block', animation: 'pulse 1.5s infinite' }} /> LIVE
+          </span>
+        </div>
+
+        {/* 중앙 AI 감지 박스 (더미) */}
+        <div style={{ position: 'absolute', top: '25%', left: '18%', width: '28%', height: '42%', border: '1px solid rgba(0,212,255,0.6)', borderRadius: 2 }}>
+          <div style={{ position: 'absolute', top: -14, left: 0, fontSize: 9, color: '#00d4ff', background: 'rgba(0,0,0,0.6)', padding: '1px 5px', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Users size={7} /> 2명
+          </div>
+        </div>
+
+        {/* 하단 바 */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '4px 8px', background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 9, color: '#64748b', fontFamily: 'monospace' }}>
+            {zone || 'ZONE-?'} · {now}
+          </span>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 3, width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <VolumeX size={8} color="#64748b" />
+            </button>
+            <button style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 3, width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Maximize2 size={8} color="#64748b" />
+            </button>
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: '6px 10px', background: 'rgba(16,185,129,0.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <CheckCircle size={11} color="#10b981" />
+        <span style={{ fontSize: 11, color: '#10b981', fontWeight: 500 }}>카메라 연결 확인됨 — 영상 수신 중</span>
+      </div>
+    </div>
+  )
+}
+
+export default function CameraRegisterModal({ onClose, onSave, user }) {
   const [step, setStep]           = useState(1)
   const [form, setForm]           = useState({ name: '', ip: '', zone: '' })
   const [connStatus, setConnStatus] = useState(null) // null | 'testing' | 'ok' | 'fail'
   const [pingMs, setPingMs]       = useState(null)
   const [cameraType, setCameraType] = useState(null)
   const [aiOptions, setAiOptions] = useState({})
+
+  const isProPlus = user?.tier === 'Pro' || user?.tier === 'Enterprise'
 
   const handleTest = () => {
     if (!form.ip.trim()) return
@@ -96,6 +159,9 @@ export default function CameraRegisterModal({ onClose, onSave }) {
       ip:         form.ip.trim(),
       zone:       form.zone.trim(),
       cameraType,
+      aiModel:    selectedType
+        ? Object.keys(aiOptions).filter(k => aiOptions[k]).map(k => selectedType.options.find(o => o.id === k)?.label).join(' · ') || selectedType.label
+        : '—',
       aiOptions:  Object.keys(aiOptions).filter(k => aiOptions[k]),
       status:     'online',
       persons:    0,
@@ -124,7 +190,8 @@ export default function CameraRegisterModal({ onClose, onSave }) {
       <div style={{
         position: 'fixed', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: 480, background: '#0f1923',
+        width: 500, maxHeight: 'calc(100vh - 60px)', overflowY: 'auto',
+        background: '#0f1923',
         border: '1px solid #1e2d3d', borderRadius: 16,
         zIndex: 10001, padding: 28,
         display: 'flex', flexDirection: 'column', gap: 20,
@@ -142,6 +209,11 @@ export default function CameraRegisterModal({ onClose, onSave }) {
             }}>
               STEP {step} / 2
             </span>
+            {isProPlus && (
+              <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 20, background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.25)', color: '#00d4ff' }}>
+                {user.tier}
+              </span>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -175,24 +247,69 @@ export default function CameraRegisterModal({ onClose, onSave }) {
         {/* ── STEP 1: 연결 설정 ── */}
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {[
-              { label: '카메라명',  key: 'name', placeholder: '예: 주차장 B동 입구 01' },
-              { label: 'IP 주소',   key: 'ip',   placeholder: '예: 192.168.1.101' },
-              { label: '설치 구역', key: 'zone', placeholder: '예: ZONE-A, 지하 주차장' },
-            ].map(({ label, key, placeholder }) => (
-              <div key={key}>
-                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 5 }}>{label}</div>
+            {/* 카메라명 */}
+            <div>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 5 }}>카메라명</div>
+              <input
+                value={form.name}
+                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="예: 주차장 B동 입구 01"
+                style={inputStyle}
+              />
+            </div>
+
+            {/* IP 주소 */}
+            <div>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 5 }}>IP 주소</div>
+              <input
+                value={form.ip}
+                onChange={e => { setForm(p => ({ ...p, ip: e.target.value })); setConnStatus(null) }}
+                placeholder="예: 192.168.1.101"
+                style={inputStyle}
+              />
+            </div>
+
+            {/* 설치 구역 — Pro+ 는 드롭다운, Basic은 텍스트 */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                <span style={{ fontSize: 11, color: '#64748b' }}>설치 구역</span>
+                {isProPlus && (
+                  <span style={{ fontSize: 9, color: '#00d4ff', background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 10, padding: '1px 6px' }}>
+                    Zone 선택
+                  </span>
+                )}
+              </div>
+              {isProPlus ? (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {ZONES.map(z => {
+                    const zc = ZONE_COLOR[z]
+                    const active = form.zone === z
+                    return (
+                      <button
+                        key={z}
+                        onClick={() => setForm(p => ({ ...p, zone: z }))}
+                        style={{
+                          padding: '6px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                          background: active ? `${zc}18` : 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${active ? zc : '#1e2d3d'}`,
+                          color: active ? zc : '#475569',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        {z}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
                 <input
-                  value={form[key]}
-                  onChange={e => {
-                    setForm(p => ({ ...p, [key]: e.target.value }))
-                    if (key === 'ip') setConnStatus(null)
-                  }}
-                  placeholder={placeholder}
+                  value={form.zone}
+                  onChange={e => setForm(p => ({ ...p, zone: e.target.value }))}
+                  placeholder="예: ZONE-A, 지하 주차장"
                   style={inputStyle}
                 />
-              </div>
-            ))}
+              )}
+            </div>
 
             {/* 연결 테스트 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -230,6 +347,11 @@ export default function CameraRegisterModal({ onClose, onSave }) {
                 </span>
               )}
             </div>
+
+            {/* 연결 성공 시 카메라 미리보기 */}
+            {connStatus === 'ok' && (
+              <CameraPreview camName={form.name} zone={form.zone} />
+            )}
 
             {connStatus !== 'ok' && form.ip.trim() && (
               <div style={{ fontSize: 11, color: '#334155', background: '#0a1628', borderRadius: 8, padding: '8px 12px' }}>

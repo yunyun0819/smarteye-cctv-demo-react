@@ -2,10 +2,70 @@ import { useState, useEffect } from 'react'
 import {
   Settings as SettingsIcon, Camera, Bell, Users,
   Save, Plus, Trash2, Edit3, ToggleLeft, ToggleRight,
-  Shield,
+  Shield, X, Brain,
 } from 'lucide-react'
 import { cameraApi, userApi } from '../api'
 import CameraRegisterModal from '../components/CameraRegisterModal'
+
+const ZONES = ['ZONE-A', 'ZONE-B', 'ZONE-C', 'ZONE-D', 'ZONE-E']
+const ZONE_COLOR = {
+  'ZONE-A': '#00d4ff', 'ZONE-B': '#10b981',
+  'ZONE-C': '#f59e0b', 'ZONE-D': '#8b5cf6', 'ZONE-E': '#64748b',
+}
+
+const CAMERA_TYPES = [
+  {
+    id: 'parking',
+    label: '주차장 / 진입로',
+    icon: '🚗',
+    options: [
+      { id: 'lpr',             label: '번호판 인식 (LPR)' },
+      { id: 'entry_log',       label: '입출차 자동기록' },
+      { id: 'regular_vehicle', label: '정기차량 관리' },
+      { id: 'blacklist',       label: '블랙리스트 차량 감지' },
+      { id: 'illegal_parking', label: '불법주차 감지' },
+    ],
+  },
+  {
+    id: 'entrance',
+    label: '건물 출입구',
+    icon: '🚪',
+    options: [
+      { id: 'count',        label: '출입자 카운팅' },
+      { id: 'face',         label: '안면 인식' },
+      { id: 'mask',         label: '마스크 착용 감지' },
+      { id: 'intrusion_in', label: '무단 침입 감지' },
+    ],
+  },
+  {
+    id: 'indoor',
+    label: '실내 매장',
+    icon: '🏪',
+    options: [
+      { id: 'customer_count', label: '고객 카운팅' },
+      { id: 'crowd',          label: '혼잡도 분석' },
+      { id: 'abnormal',       label: '이상행동 감지' },
+      { id: 'fire',           label: '화재/연기 감지' },
+    ],
+  },
+  {
+    id: 'outdoor',
+    label: '야외 / 경계',
+    icon: '🌿',
+    options: [
+      { id: 'intrusion', label: '침입 감지' },
+      { id: 'loitering', label: '배회 감지' },
+      { id: 'night',     label: '야간 강화 모드' },
+      { id: 'fall',      label: '낙상 감지' },
+    ],
+  },
+]
+
+const inputStyle = {
+  width: '100%', boxSizing: 'border-box',
+  background: '#0a1628', border: '1px solid #1e2d3d', borderRadius: 8,
+  padding: '7px 12px', fontSize: 12, color: '#e2e8f0', outline: 'none', fontFamily: 'inherit',
+}
 
 function Toggle({ value, onChange }) {
   return (
@@ -30,6 +90,212 @@ function SettingRow({ label, desc, children }) {
   )
 }
 
+// ── 카메라 수정 모달 ───────────────────────────────────────────
+function CameraEditModal({ camera, onClose, onSave, user }) {
+  const isProPlus = user?.tier === 'Pro' || user?.tier === 'Enterprise'
+
+  // 기존 aiModel 문자열에서 초기 체크 상태를 복원
+  const initAiOptions = (typeId) => {
+    const typeObj = CAMERA_TYPES.find(t => t.id === typeId)
+    if (!typeObj || !camera.aiModel) return {}
+    const existingLabels = camera.aiModel.split(' · ').map(s => s.trim())
+    return Object.fromEntries(
+      typeObj.options.map(o => [o.id, existingLabels.includes(o.label)])
+    )
+  }
+
+  const [form, setForm] = useState({
+    name:       camera.name,
+    ip:         camera.ip,
+    zone:       camera.zone,
+    resolution: camera.resolution,
+    fps:        camera.fps,
+  })
+  const [selectedType, setSelectedType] = useState(camera.cameraType || null)
+  const [aiOptions, setAiOptions]       = useState(() => initAiOptions(camera.cameraType))
+
+  const currentTypeObj = CAMERA_TYPES.find(t => t.id === selectedType)
+
+  const handleTypeSelect = (typeId) => {
+    setSelectedType(typeId)
+    setAiOptions(initAiOptions(typeId))
+  }
+
+  const toggleAiOption = (optId) =>
+    setAiOptions(prev => ({ ...prev, [optId]: !prev[optId] }))
+
+  const buildAiModel = () => {
+    if (!currentTypeObj) return '—'
+    const labels = currentTypeObj.options
+      .filter(o => aiOptions[o.id])
+      .map(o => o.label)
+    return labels.length > 0 ? labels.join(' · ') : currentTypeObj.label
+  }
+
+  const handleSave = () => {
+    onSave({ ...camera, ...form, cameraType: selectedType, aiModel: buildAiModel() })
+    onClose()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: '#0f1923', border: '1px solid #1e2d3d', borderRadius: 16, padding: 24, width: '100%', maxWidth: 500, maxHeight: 'calc(100vh - 60px)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+        {/* 헤더 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Edit3 size={15} color="#00d4ff" />
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>카메라 정보 수정</span>
+          </div>
+          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#475569', padding: 4, lineHeight: 0 }} onClick={onClose}>
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* ── 섹션: 기본 정보 ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 10, color: '#00d4ff', letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 700 }}>기본 정보</div>
+
+          {[
+            { label: '카메라명', key: 'name', placeholder: '정문 입구 01' },
+            { label: 'IP 주소',  key: 'ip',   placeholder: '192.168.1.101' },
+          ].map(f => (
+            <div key={f.key}>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{f.label}</div>
+              <input style={inputStyle} value={form[f.key]} placeholder={f.placeholder}
+                onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} />
+            </div>
+          ))}
+
+          {/* 구역 */}
+          <div>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>설치 구역</div>
+            {isProPlus ? (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {ZONES.map(z => {
+                  const zc = ZONE_COLOR[z]
+                  const active = form.zone === z
+                  return (
+                    <button key={z} onClick={() => setForm(p => ({ ...p, zone: z }))}
+                      style={{ padding: '5px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: 600, background: active ? `${zc}18` : 'rgba(255,255,255,0.03)', border: `1px solid ${active ? zc : '#1e2d3d'}`, color: active ? zc : '#475569', transition: 'all 0.15s' }}>
+                      {z}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <input style={inputStyle} value={form.zone} placeholder="ZONE-A"
+                onChange={e => setForm(p => ({ ...p, zone: e.target.value }))} />
+            )}
+          </div>
+
+          {/* 해상도 + FPS */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>해상도</div>
+              <select style={inputStyle} value={form.resolution} onChange={e => setForm(p => ({ ...p, resolution: e.target.value }))}>
+                {['720p','1080p','4K'].map(r => <option key={r}>{r}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>FPS</div>
+              <select style={inputStyle} value={form.fps} onChange={e => setForm(p => ({ ...p, fps: +e.target.value }))}>
+                {[0,15,25,30].map(f => <option key={f} value={f}>{f > 0 ? `${f}fps` : '—'}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 섹션: AI 모델 설정 ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 10, color: '#8b5cf6', letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 700 }}>AI 모델 설정</div>
+
+          {/* 1단계: 카메라 용도(유형) 선택 */}
+          <div>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>카메라 용도 선택</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {CAMERA_TYPES.map(t => {
+                const active = selectedType === t.id
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => handleTypeSelect(t.id)}
+                    style={{
+                      background: active ? 'rgba(139,92,246,0.1)' : '#0a1628',
+                      border: `1px solid ${active ? 'rgba(139,92,246,0.45)' : '#1e2d3d'}`,
+                      borderRadius: 10, padding: '10px 12px',
+                      cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>{t.icon}</div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: active ? '#a78bfa' : '#64748b' }}>
+                      {t.label}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* 2단계: 선택된 용도의 AI 옵션 */}
+          {currentTypeObj ? (
+            <div style={{ background: '#0a1628', border: '1px solid #1e2d3d', borderRadius: 10, padding: 14 }}>
+              <div style={{ fontSize: 11, color: '#475569', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 14 }}>{currentTypeObj.icon}</span>
+                <span style={{ color: '#a78bfa', fontWeight: 600 }}>{currentTypeObj.label}</span>
+                <span style={{ color: '#334155' }}>— AI 옵션 선택 (복수 가능)</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {currentTypeObj.options.map(opt => (
+                  <label key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!aiOptions[opt.id]}
+                      onChange={() => toggleAiOption(opt.id)}
+                      style={{ accentColor: '#8b5cf6', width: 14, height: 14, flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 12, color: aiOptions[opt.id] ? '#e2e8f0' : '#64748b' }}>
+                      {opt.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: '#334155', background: '#0a1628', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Brain size={12} color="#334155" />
+              카메라 용도를 먼저 선택하면 해당 용도에 맞는 AI 모델을 고를 수 있습니다.
+            </div>
+          )}
+
+          {/* 적용 예정 모델 미리보기 */}
+          {currentTypeObj && (
+            <div style={{ background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: 8, padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
+              <Brain size={11} color="#8b5cf6" style={{ flexShrink: 0 }} />
+              {currentTypeObj.options.filter(o => aiOptions[o.id]).length > 0
+                ? currentTypeObj.options.filter(o => aiOptions[o.id]).map(o => (
+                    <span key={o.id} style={{ fontSize: 10, padding: '1px 7px', borderRadius: 10, background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa' }}>
+                      {o.label}
+                    </span>
+                  ))
+                : <span style={{ fontSize: 11, color: '#334155' }}>옵션을 선택하면 여기에 표시됩니다</span>
+              }
+            </div>
+          )}
+        </div>
+
+        {/* 버튼 */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
+          <button style={{ background: 'transparent', border: '1px solid #1e2d3d', borderRadius: 8, padding: '7px 16px', cursor: 'pointer', fontSize: 12, color: '#475569' }} onClick={onClose}>취소</button>
+          <button style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)', borderRadius: 8, padding: '7px 18px', cursor: 'pointer', fontSize: 12, color: '#00d4ff', display: 'flex', alignItems: 'center', gap: 6 }} onClick={handleSave}>
+            <Save size={12} /> 저장
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Settings({ user }) {
   const [tab, setTab] = useState('camera')
   const [cameras, setCameras] = useState([])
@@ -40,6 +306,7 @@ export default function Settings({ user }) {
   const isCompanyAdmin = user?.role === '관리자' && user?.isCompany
 
   const [showRegisterModal, setShowRegisterModal] = useState(false)
+  const [editingCamera, setEditingCamera] = useState(null)
   const [camToggles, setCamToggles] = useState({})
   const [alertSettings, setAlertSettings] = useState({
     personAlert:  true,
@@ -49,6 +316,7 @@ export default function Settings({ user }) {
     emailNotify:  false,
     threshold:    80,
   })
+
   useEffect(() => {
     cameraApi.getAll().then(data => {
       setCameras(data)
@@ -69,6 +337,10 @@ export default function Settings({ user }) {
     })
   }
 
+  const handleCameraEdit = (updatedCam) => {
+    setCameras(prev => prev.map(c => c.id === updatedCam.id ? updatedCam : c))
+  }
+
   const tabs = [
     { key: 'camera', label: '카메라 설정', Icon: Camera },
     { key: 'alert',  label: '알림 설정',   Icon: Bell   },
@@ -79,10 +351,20 @@ export default function Settings({ user }) {
     <div className="content">
       {showRegisterModal && (
         <CameraRegisterModal
+          user={user}
           onClose={() => setShowRegisterModal(false)}
           onSave={handleCameraRegister}
         />
       )}
+      {editingCamera && (
+        <CameraEditModal
+          camera={editingCamera}
+          user={user}
+          onClose={() => setEditingCamera(null)}
+          onSave={handleCameraEdit}
+        />
+      )}
+
       <div style={{ display: 'flex', gap: 14, flex: 1, minHeight: 0 }}>
         {/* 탭 사이드 */}
         <div style={{ width: 200, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -111,28 +393,54 @@ export default function Settings({ user }) {
                   </button>
                 </div>
               </div>
-              <table className="vehicle-table">
-                <thead>
-                  <tr><th>카메라명</th><th>IP</th><th>구역</th><th>해상도</th><th>FPS</th><th>활성화</th></tr>
-                </thead>
-                <tbody>
-                  {cameras.map(cam => (
-                    <tr key={cam.id}>
-                      <td style={{ color: '#e2e8f0', fontWeight: 500, fontSize: 12 }}>{cam.name}</td>
-                      <td className="mono" style={{ fontSize: 11 }}>{cam.ip}</td>
-                      <td><span className="section-badge" style={{ fontSize: 10 }}>{cam.zone}</span></td>
-                      <td style={{ color: '#94a3b8', fontSize: 11 }}>{cam.resolution}</td>
-                      <td style={{ fontFamily: 'Share Tech Mono', fontSize: 11, color: cam.fps > 0 ? '#94a3b8' : '#334155' }}>
-                        {cam.fps > 0 ? `${cam.fps}fps` : '—'}
-                      </td>
-                      <td>
-                        <Toggle value={camToggles[cam.id] ?? false}
-                          onChange={v => setCamToggles(p => ({ ...p, [cam.id]: v }))} />
-                      </td>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="vehicle-table">
+                  <thead>
+                    <tr>
+                      <th>카메라명</th><th>IP</th><th>구역</th><th>해상도</th><th>FPS</th>
+                      <th>AI 모델</th><th>활성화</th><th>수정</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {cameras.map(cam => (
+                      <tr key={cam.id}>
+                        <td style={{ color: '#e2e8f0', fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap' }}>{cam.name}</td>
+                        <td className="mono" style={{ fontSize: 11 }}>{cam.ip}</td>
+                        <td>
+                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 12, background: `${ZONE_COLOR[cam.zone] || '#64748b'}15`, border: `1px solid ${ZONE_COLOR[cam.zone] || '#64748b'}30`, color: ZONE_COLOR[cam.zone] || '#64748b', fontWeight: 600 }}>
+                            {cam.zone}
+                          </span>
+                        </td>
+                        <td style={{ color: '#94a3b8', fontSize: 11 }}>{cam.resolution}</td>
+                        <td style={{ fontFamily: 'Share Tech Mono', fontSize: 11, color: cam.fps > 0 ? '#94a3b8' : '#334155' }}>
+                          {cam.fps > 0 ? `${cam.fps}fps` : '—'}
+                        </td>
+                        <td style={{ maxWidth: 200 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            {cam.aiModel && cam.aiModel !== '—'
+                              ? cam.aiModel.split(' · ').map((m, i) => (
+                                  <span key={i} style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', color: '#8b5cf6', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    <Brain size={7} /> {m}
+                                  </span>
+                                ))
+                              : <span style={{ color: '#334155', fontSize: 11 }}>—</span>
+                            }
+                          </div>
+                        </td>
+                        <td>
+                          <Toggle value={camToggles[cam.id] ?? false}
+                            onChange={v => setCamToggles(p => ({ ...p, [cam.id]: v }))} />
+                        </td>
+                        <td>
+                          <button className="cam-btn" style={{ width: 28, height: 28 }} onClick={() => setEditingCamera(cam)} title="카메라 수정">
+                            <Edit3 size={11} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           )}
 

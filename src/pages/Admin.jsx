@@ -281,14 +281,37 @@ export default function Admin({ user, onLogout }) {
   const toggleGroup = (key) =>
     setOpenGroups(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
 
+  const triggerAutoLockWithEmail = (u) => {
+    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, locked: true, failedLogins: x.failedLogins } : x))
+    pushAudit('LOCK', u.name, `로그인 실패 ${u.failedLogins}회 초과 — 계정 자동 잠금`)
+    pushAudit('UPDATE', u.name, `잠금 안내 이메일 자동 발송 → ${u.email}`)
+    setEmailNotif({ name: u.name, email: u.email, auto: true })
+    setTimeout(() => setEmailNotif(null), 5000)
+  }
+
+  const simulateFailedLogin = (id) => {
+    setUsers(prev => {
+      const updated = prev.map(x => {
+        if (x.id !== id) return x
+        const newFailed = x.failedLogins + 1
+        return { ...x, failedLogins: newFailed }
+      })
+      const u = updated.find(x => x.id === id)
+      if (u && !u.locked && u.failedLogins >= security.maxFailedLogins) {
+        setTimeout(() => triggerAutoLockWithEmail(u), 0)
+      }
+      return updated
+    })
+  }
+
   const toggleLock = (id) => {
     const u = users.find(x => x.id === id)
     const willLock = !u?.locked
     setUsers(prev => prev.map(x => x.id === id ? { ...x, locked: !x.locked, failedLogins: 0 } : x))
     if (willLock) {
-      pushAudit('LOCK', u?.name, `계정 잠금 처리`)
+      pushAudit('LOCK', u?.name, `계정 수동 잠금 처리`)
       pushAudit('UPDATE', u?.name, `잠금 안내 이메일 자동 발송 → ${u?.email}`)
-      setEmailNotif({ name: u?.name, email: u?.email })
+      setEmailNotif({ name: u?.name, email: u?.email, auto: false })
       setTimeout(() => setEmailNotif(null), 4500)
     } else {
       pushAudit('UPDATE', u?.name, '계정 잠금 해제')
@@ -574,7 +597,7 @@ export default function Admin({ user, onLogout }) {
                   <thead>
                     <tr>
                       <Th>#</Th><Th>이름</Th><Th>이메일</Th><Th>회사</Th><Th>역할</Th><Th>플랜</Th>
-                      <Th>상태</Th><Th>마지막 로그인</Th><Th>접근 구역</Th><Th>잠금</Th><Th>관리</Th>
+                      <Th>상태</Th><Th>마지막 로그인</Th><Th>접근 구역</Th><Th>실패(시뮬)</Th><Th>잠금</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -627,6 +650,22 @@ export default function Admin({ user, onLogout }) {
                           </div>
                         </Td>
                         <Td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontFamily: 'Share Tech Mono', fontSize: 11, color: u.failedLogins >= security.maxFailedLogins ? '#ef4444' : u.failedLogins > 0 ? '#f59e0b' : '#334155' }}>
+                              {u.failedLogins}/{security.maxFailedLogins}
+                            </span>
+                            {!u.locked && (
+                              <button
+                                style={{ ...S.iconBtn, width: 22, height: 22, borderColor: 'rgba(245,158,11,0.3)' }}
+                                onClick={() => simulateFailedLogin(u.id)}
+                                title="로그인 실패 시뮬레이션 (+1)"
+                              >
+                                <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>+</span>
+                              </button>
+                            )}
+                          </div>
+                        </Td>
+                        <Td>
                           <button style={{ ...S.iconBtn, borderColor: u.locked ? 'rgba(239,68,68,0.3)' : '#1e2d3d' }} onClick={() => toggleLock(u.id)} title={u.locked ? '잠금 해제' : '계정 잠금'}>
                             {u.locked ? <Unlock size={11} color="#ef4444" /> : <Lock size={11} color="#475569" />}
                           </button>
@@ -647,7 +686,7 @@ export default function Admin({ user, onLogout }) {
                       </tr>
                     ))}
                     {filteredUsers.length === 0 && (
-                      <tr><td colSpan={11} style={{ padding: '24px', textAlign: 'center', color: '#334155', fontSize: 12 }}>검색 결과가 없습니다.</td></tr>
+                      <tr><td colSpan={12} style={{ padding: '24px', textAlign: 'center', color: '#334155', fontSize: 12 }}>검색 결과가 없습니다.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1121,18 +1160,24 @@ export default function Admin({ user, onLogout }) {
       {emailNotif && (
         <div style={{
           position: 'fixed', bottom: 24, right: 24,
-          background: '#0f1923', border: '1px solid rgba(16,185,129,0.35)',
+          background: '#0f1923',
+          border: `1px solid ${emailNotif.auto ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.35)'}`,
           borderRadius: 12, padding: '14px 18px', zIndex: 99999,
           display: 'flex', alignItems: 'center', gap: 12,
           boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
           animation: 'fadeToastIn 0.3s ease',
+          maxWidth: 340,
         }}>
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Mail size={15} color="#10b981" />
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: emailNotif.auto ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)', border: `1px solid ${emailNotif.auto ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Mail size={15} color={emailNotif.auto ? '#ef4444' : '#10b981'} />
           </div>
           <div>
-            <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600, marginBottom: 3 }}>이메일 자동 발송 완료</div>
-            <div style={{ fontSize: 11, color: '#475569' }}>{emailNotif.name} · 계정 잠금 알림</div>
+            <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600, marginBottom: 3 }}>
+              {emailNotif.auto ? '⚠ 자동 잠금 — 이메일 발송됨' : '이메일 자동 발송 완료'}
+            </div>
+            <div style={{ fontSize: 11, color: '#475569' }}>
+              {emailNotif.name} · {emailNotif.auto ? '계정 자동 잠금 안내' : '계정 잠금 알림'}
+            </div>
             <div style={{ fontSize: 10, color: '#334155', fontFamily: 'Share Tech Mono', marginTop: 1 }}>{emailNotif.email}</div>
           </div>
         </div>

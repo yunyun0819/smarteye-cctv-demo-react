@@ -10,17 +10,17 @@ const COMPANY_ACCOUNTS = [
     email: 'demo@company.com', password: 'demo1234',
     company: '스마트 물류 주식회사', tier: 'Pro', cameras: 32, cameraUsed: 16,
     employees: [
-      { name: '김관리자',  employeeId: 'EMP001', role: '관리자' },
-      { name: '이경비',    employeeId: 'EMP002', role: '운영자' },
-      { name: '박모니터', employeeId: 'EMP003', role: '뷰어'   },
+      { name: '김관리자',  employeeId: 'EMP001', role: '관리자', zones: ['ZONE-A','ZONE-B','ZONE-C','ZONE-D','ZONE-E'] },
+      { name: '이경비',    employeeId: 'EMP002', role: '운영자', zones: ['ZONE-A','ZONE-B','ZONE-C'] },
+      { name: '박모니터', employeeId: 'EMP003', role: '뷰어',   zones: ['ZONE-A','ZONE-B'] },
     ],
   },
   {
     email: 'admin@factory.kr', password: 'admin123',
     company: '한국 공장 관리', tier: 'Enterprise', cameras: -1, cameraUsed: 48,
     employees: [
-      { name: '이공장장', employeeId: 'FAC001', role: '관리자' },
-      { name: '김운영',   employeeId: 'FAC002', role: '운영자' },
+      { name: '이공장장', employeeId: 'FAC001', role: '관리자', zones: ['ZONE-A','ZONE-B','ZONE-C','ZONE-D','ZONE-E'] },
+      { name: '김운영',   employeeId: 'FAC002', role: '운영자', zones: ['ZONE-A','ZONE-B','ZONE-C','ZONE-D'] },
     ],
   },
 ]
@@ -29,7 +29,7 @@ const COMPANY_ACCOUNTS = [
 const INDIVIDUAL_ACCOUNTS = [
   {
     email: 'test@test.com', password: 'test1234',
-    user: { name: '박테스트', company: '개인', email: 'test@test.com', role: '관리자', tier: 'Basic', cameras: 8, cameraUsed: 6 },
+    user: { name: '박테스트', company: '개인', email: 'test@test.com', role: '관리자', tier: 'Basic', cameras: 8, cameraUsed: 6, zones: ['ZONE-A','ZONE-B'] },
   },
 ]
 
@@ -128,6 +128,7 @@ export default function Login({ onLogin, onBack }) {
           cameraUsed: pendingCompany.cameraUsed,
           email: pendingCompany.email,
           isCompany: true,
+          zones: emp.zones,
         })
       } else {
         setError('사원 번호가 올바르지 않습니다.')
