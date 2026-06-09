@@ -1,23 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Shield, Users, Key, Activity, Clock,
   Search, Plus, Trash2, LogOut, Lock, Unlock,
   CheckCircle, XCircle, AlertTriangle,
   Monitor, MapPin, ChevronDown, Save, X,
-  UserPlus, ShieldAlert,
+  UserPlus, ShieldAlert, Mail, Building2,
 } from 'lucide-react'
 
 // ── Mock Data ──────────────────────────────────────────────────
 const ZONES = ['ZONE-A', 'ZONE-B', 'ZONE-C', 'ZONE-D', 'ZONE-E']
 
 const INIT_USERS = [
-  { id: 1, name: '김관리자',  email: 'demo@company.com',     role: '관리자', tier: 'Pro',        status: 'online',  lastLogin: '2026-06-05 14:30', joinDate: '2025-01-15', zones: ['ZONE-A','ZONE-B','ZONE-C','ZONE-D','ZONE-E'], failedLogins: 0, locked: false },
-  { id: 2, name: '이공장장',  email: 'admin@factory.kr',     role: '관리자', tier: 'Enterprise', status: 'online',  lastLogin: '2026-06-05 11:45', joinDate: '2024-12-01', zones: ['ZONE-A','ZONE-B','ZONE-C','ZONE-D','ZONE-E'], failedLogins: 0, locked: false },
-  { id: 3, name: '박테스트',  email: 'test@test.com',        role: '운영자', tier: 'Basic',      status: 'offline', lastLogin: '2026-06-03 16:20', joinDate: '2026-01-10', zones: ['ZONE-A','ZONE-B'],                        failedLogins: 0, locked: false },
-  { id: 4, name: '최보안',    email: 'security@smarteye.kr', role: '운영자', tier: 'Pro',        status: 'offline', lastLogin: '2026-05-28 10:30', joinDate: '2025-08-01', zones: ['ZONE-C','ZONE-D'],                        failedLogins: 0, locked: false },
-  { id: 5, name: '정경비',    email: 'guard@smarteye.kr',    role: '뷰어',   tier: 'Basic',      status: 'offline', lastLogin: '2026-05-20 08:15', joinDate: '2025-11-30', zones: ['ZONE-A'],                                 failedLogins: 3, locked: true  },
-  { id: 6, name: '이경비',    email: 'ops@smarteye.kr',      role: '운영자', tier: 'Pro',        status: 'online',  lastLogin: '2026-06-05 09:15', joinDate: '2025-03-22', zones: ['ZONE-A','ZONE-B','ZONE-C'],               failedLogins: 0, locked: false },
-  { id: 7, name: '박모니터',  email: 'monitor@smarteye.kr',  role: '뷰어',   tier: 'Pro',        status: 'offline', lastLogin: '2026-06-04 18:00', joinDate: '2025-06-10', zones: ['ZONE-A','ZONE-B'],                        failedLogins: 1, locked: false },
+  { id: 1, name: '김관리자',  email: 'demo@company.com',     role: '관리자', tier: 'Pro',        status: 'online',  lastLogin: '2026-06-05 14:30', joinDate: '2025-01-15', zones: ['ZONE-A','ZONE-B','ZONE-C','ZONE-D','ZONE-E'], failedLogins: 0, locked: false, company: '스마트 물류 주식회사' },
+  { id: 2, name: '이공장장',  email: 'admin@factory.kr',     role: '관리자', tier: 'Enterprise', status: 'online',  lastLogin: '2026-06-05 11:45', joinDate: '2024-12-01', zones: ['ZONE-A','ZONE-B','ZONE-C','ZONE-D','ZONE-E'], failedLogins: 0, locked: false, company: '한국 공장 관리' },
+  { id: 3, name: '박테스트',  email: 'test@test.com',        role: '운영자', tier: 'Basic',      status: 'offline', lastLogin: '2026-06-03 16:20', joinDate: '2026-01-10', zones: ['ZONE-A','ZONE-B'],                        failedLogins: 0, locked: false, company: '개인' },
+  { id: 4, name: '최보안',    email: 'security@smarteye.kr', role: '운영자', tier: 'Pro',        status: 'offline', lastLogin: '2026-05-28 10:30', joinDate: '2025-08-01', zones: ['ZONE-C','ZONE-D'],                        failedLogins: 0, locked: false, company: 'SmartEye' },
+  { id: 5, name: '정경비',    email: 'guard@smarteye.kr',    role: '뷰어',   tier: 'Basic',      status: 'offline', lastLogin: '2026-05-20 08:15', joinDate: '2025-11-30', zones: ['ZONE-A'],                                 failedLogins: 3, locked: true,  company: 'SmartEye' },
+  { id: 6, name: '이경비',    email: 'ops@smarteye.kr',      role: '운영자', tier: 'Pro',        status: 'online',  lastLogin: '2026-06-05 09:15', joinDate: '2025-03-22', zones: ['ZONE-A','ZONE-B','ZONE-C'],               failedLogins: 0, locked: false, company: '스마트 물류 주식회사' },
+  { id: 7, name: '박모니터',  email: 'monitor@smarteye.kr',  role: '뷰어',   tier: 'Pro',        status: 'offline', lastLogin: '2026-06-04 18:00', joinDate: '2025-06-10', zones: ['ZONE-A','ZONE-B'],                        failedLogins: 1, locked: false, company: '스마트 물류 주식회사' },
 ]
 
 const LOGIN_HISTORY_DATA = [
@@ -36,7 +36,7 @@ const LOGIN_HISTORY_DATA = [
 ]
 
 const INIT_AUDIT = [
-  { id: 1, time: '2026-06-05 14:31', by: '시스템',     type: 'LOCK',   target: '정경비',  detail: '로그인 실패 3회 초과 — 계정 자동 잠금' },
+  { id: 1, time: '2026-06-05 14:31', by: '시스템',     type: 'LOCK',   target: '정경비',  detail: '로그인 실패 3회 초과 — 계정 자동 잠금 + 이메일 발송' },
   { id: 2, time: '2026-06-05 11:00', by: '시스템관리자', type: 'UPDATE', target: '박모니터', detail: '역할 변경: 관리자 → 뷰어' },
   { id: 3, time: '2026-06-05 09:05', by: '시스템관리자', type: 'CREATE', target: '이공장장', detail: '신규 계정 생성 (Enterprise · 관리자)' },
   { id: 4, time: '2026-06-04 17:30', by: '김관리자',  type: 'UPDATE', target: '최보안',  detail: '접근 구역 변경: ZONE-C, ZONE-D 추가' },
@@ -58,13 +58,44 @@ const INIT_ADMINS = [
   { id: 2, name: '김운영관리', email: 'manager@smarteye.kr', adminLevel: '운영관리자', lastLogin: '2026-06-04 09:15', status: 'offline' },
 ]
 
+// ── 회사별 로그인 설정 초기값 ──────────────────────────────────
+const INIT_COMPANY_LOGIN_OPTIONS = [
+  { name: '스마트 물류 주식회사', requireEmployeeId: true,  ipRestriction: false },
+  { name: '한국 공장 관리',      requireEmployeeId: true,  ipRestriction: true  },
+  { name: 'SmartEye',            requireEmployeeId: false, ipRestriction: true  },
+]
+
+// ── 사이드바 그룹 정의 ─────────────────────────────────────────
+const SIDEBAR_GROUPS = [
+  {
+    key: 'user-mgmt', label: '사용자 관리', Icon: Users,
+    items: [
+      { key: 'users',    label: '사용자 목록',     Icon: Users   },
+      { key: 'sessions', label: '실시간 접속 현황', Icon: Monitor },
+    ],
+  },
+  {
+    key: 'log-mgmt', label: '로그 관리', Icon: Activity,
+    items: [
+      { key: 'history', label: '로그인 이력', Icon: Clock    },
+      { key: 'audit',   label: '감사 로그',   Icon: Activity },
+    ],
+  },
+  {
+    key: 'settings-mgmt', label: '설정 관리', Icon: Shield,
+    items: [
+      { key: 'perms',    label: '권한 부여',  Icon: Key    },
+      { key: 'security', label: '보안 설정',  Icon: Shield },
+    ],
+  },
+]
+
 const ADMIN_LEVEL_CFG = {
   '총관리자':  { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.3)'   },
   '운영관리자': { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.3)'  },
   '조회관리자': { color: '#64748b', bg: 'rgba(100,116,139,0.1)',  border: 'rgba(100,116,139,0.2)' },
 }
 
-// 등급별 접근 가능한 탭
 const TAB_ACCESS = {
   '총관리자':  ['users', 'perms', 'history', 'audit', 'sessions', 'security', 'admins'],
   '운영관리자': ['users', 'perms', 'history', 'audit', 'sessions'],
@@ -126,7 +157,7 @@ function nowStr() {
 // ── Helper Components ──────────────────────────────────────────
 function Th({ children }) {
   return (
-    <th style={{ padding: '8px 14px', textAlign: 'left', fontSize: 10, color: '#475569', fontWeight: 700, borderBottom: '1px solid #1e2d3d', letterSpacing: 0.8, textTransform: 'uppercase', background: 'rgba(0,0,0,0.25)', whiteSpace: 'nowrap' }}>
+    <th style={{ padding: '7px 10px', textAlign: 'left', fontSize: 10, color: '#475569', fontWeight: 700, borderBottom: '1px solid #1e2d3d', letterSpacing: 0.8, textTransform: 'uppercase', background: 'rgba(0,0,0,0.25)', whiteSpace: 'nowrap' }}>
       {children}
     </th>
   )
@@ -134,7 +165,7 @@ function Th({ children }) {
 
 function Td({ children, style }) {
   return (
-    <td style={{ padding: '10px 14px', fontSize: 12, borderBottom: '1px solid #0f1923', ...style }}>
+    <td style={{ padding: '8px 10px', fontSize: 12, borderBottom: '1px solid #0f1923', ...style }}>
       {children}
     </td>
   )
@@ -160,13 +191,13 @@ function TierBadge({ tier }) {
 
 function Card({ title, icon: Icon, iconColor = '#00d4ff', children, action }) {
   return (
-    <div style={{ background: '#0f1923', border: '1px solid #1e2d3d', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon size={14} color={iconColor} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{title}</span>
+    <div style={{ background: '#0f1923', border: '1px solid #1e2d3d', borderRadius: 12, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <Icon size={14} color={iconColor} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap' }}>{title}</span>
         </div>
-        {action}
+        {action && <div style={{ flexShrink: 0 }}>{action}</div>}
       </div>
       {children}
     </div>
@@ -184,14 +215,27 @@ export default function Admin({ user, onLogout }) {
   const [auditLog, setAuditLog] = useState(INIT_AUDIT)
   const [security, setSecurity] = useState(INIT_SECURITY)
   const [perms, setPerms]       = useState(PERM_DEFAULT)
+  const [pendingPerms, setPendingPerms] = useState(PERM_DEFAULT)
+  const [permsChanged, setPermsChanged] = useState(false)
   const [newIp, setNewIp]       = useState('')
   const [admins, setAdmins]     = useState(INIT_ADMINS)
+  const [companyLoginOptions, setCompanyLoginOptions] = useState(INIT_COMPANY_LOGIN_OPTIONS)
+
+  // Accordion sidebar
+  const [openGroups, setOpenGroups] = useState(() => {
+    const group = SIDEBAR_GROUPS.find(g => g.items.some(i => i.key === allowedTabs[0]))
+    return group ? [group.key] : ['user-mgmt']
+  })
+
+  // Email notification toast
+  const [emailNotif, setEmailNotif] = useState(null)
 
   // Users tab
   const [userSearch, setUserSearch]         = useState('')
   const [roleFilter, setRoleFilter]         = useState('전체')
+  const [companyFilter, setCompanyFilter]   = useState('전체')
   const [showAddUser, setShowAddUser]       = useState(false)
-  const [newUser, setNewUser]               = useState({ name: '', email: '', role: '뷰어', tier: 'Basic', zones: [] })
+  const [newUser, setNewUser]               = useState({ name: '', email: '', role: '뷰어', tier: 'Basic', zones: [], company: '개인' })
   const [editingRole, setEditingRole]       = useState(null)
   const [confirmDelete, setConfirmDelete]   = useState(null)
 
@@ -201,6 +245,14 @@ export default function Admin({ user, onLogout }) {
   // Login history tab
   const [historyFilter, setHistoryFilter] = useState('전체')
 
+  // Auto-expand group when tab changes
+  useEffect(() => {
+    const group = SIDEBAR_GROUPS.find(g => g.items.some(i => i.key === tab))
+    if (group && !openGroups.includes(group.key)) {
+      setOpenGroups(prev => [...prev, group.key])
+    }
+  }, [tab])
+
   // Computed
   const lockedCount   = users.filter(u => u.locked).length
   const inactiveCount = users.filter(u => {
@@ -208,11 +260,14 @@ export default function Admin({ user, onLogout }) {
     return diff > 7
   }).length
 
+  const uniqueCompanies = ['전체', ...new Set(users.map(u => u.company))]
+
   const filteredUsers = users.filter(u => {
     const q = userSearch.toLowerCase()
     const matchQ = !q || u.name.includes(q) || u.email.toLowerCase().includes(q)
     const matchR = roleFilter === '전체' || u.role === roleFilter
-    return matchQ && matchR
+    const matchC = companyFilter === '전체' || u.company === companyFilter
+    return matchQ && matchR && matchC
   })
 
   const filteredHistory = historyFilter === '전체'
@@ -223,10 +278,21 @@ export default function Admin({ user, onLogout }) {
   const pushAudit = (type, target, detail) =>
     setAuditLog(prev => [{ id: Date.now(), time: nowStr(), by: '시스템관리자', type, target, detail }, ...prev])
 
+  const toggleGroup = (key) =>
+    setOpenGroups(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
+
   const toggleLock = (id) => {
     const u = users.find(x => x.id === id)
+    const willLock = !u?.locked
     setUsers(prev => prev.map(x => x.id === id ? { ...x, locked: !x.locked, failedLogins: 0 } : x))
-    pushAudit(u?.locked ? 'UPDATE' : 'LOCK', u?.name, u?.locked ? '계정 잠금 해제' : '계정 수동 잠금')
+    if (willLock) {
+      pushAudit('LOCK', u?.name, `계정 잠금 처리`)
+      pushAudit('UPDATE', u?.name, `잠금 안내 이메일 자동 발송 → ${u?.email}`)
+      setEmailNotif({ name: u?.name, email: u?.email })
+      setTimeout(() => setEmailNotif(null), 4500)
+    } else {
+      pushAudit('UPDATE', u?.name, '계정 잠금 해제')
+    }
   }
 
   const changeRole = (id, newRole) => {
@@ -247,8 +313,8 @@ export default function Admin({ user, onLogout }) {
     if (!newUser.name.trim() || !newUser.email.trim()) return
     const created = { ...newUser, id: Date.now(), status: 'offline', lastLogin: '—', joinDate: '2026-06-05', failedLogins: 0, locked: false }
     setUsers(prev => [...prev, created])
-    pushAudit('CREATE', newUser.name, `신규 계정 생성 (${newUser.tier} · ${newUser.role})`)
-    setNewUser({ name: '', email: '', role: '뷰어', tier: 'Basic', zones: [] })
+    pushAudit('CREATE', newUser.name, `신규 계정 생성 (${newUser.tier} · ${newUser.role} · ${newUser.company})`)
+    setNewUser({ name: '', email: '', role: '뷰어', tier: 'Basic', zones: [], company: '개인' })
     setShowAddUser(false)
   }
 
@@ -263,8 +329,21 @@ export default function Admin({ user, onLogout }) {
     pushAudit('UPDATE', '전체', '전체 강제 로그아웃')
   }
 
-  const togglePerm = (role, idx) =>
-    setPerms(prev => ({ ...prev, [role]: prev[role].map((v, i) => i === idx ? !v : v) }))
+  const togglePerm = (role, idx) => {
+    setPendingPerms(prev => ({ ...prev, [role]: prev[role].map((v, i) => i === idx ? !v : v) }))
+    setPermsChanged(true)
+  }
+
+  const applyPerms = () => {
+    setPerms(pendingPerms)
+    setPermsChanged(false)
+    pushAudit('UPDATE', '권한 설정', '역할별 권한 변경 사항 DB 적용 완료')
+  }
+
+  const resetPendingPerms = () => {
+    setPendingPerms(perms)
+    setPermsChanged(false)
+  }
 
   const changeAdminLevel = (id, newLevel) => {
     const a = admins.find(x => x.id === id)
@@ -273,33 +352,27 @@ export default function Admin({ user, onLogout }) {
     setEditingAdminLevel(null)
   }
 
+  const toggleCompanyOpt = (name, key) => {
+    setCompanyLoginOptions(prev => prev.map(c => c.name === name ? { ...c, [key]: !c[key] } : c))
+    pushAudit('UPDATE', name, `로그인 설정 변경: ${key === 'requireEmployeeId' ? '사원번호 인증' : 'IP 접근 제한'} 토글`)
+  }
+
   // Styles
   const S = {
-    page:     { minHeight: '100vh', background: '#060e1a', display: 'flex', flexDirection: 'column', fontFamily: 'inherit', color: '#e2e8f0' },
-    header:   { padding: '0 28px', height: 56, background: '#0a1628', borderBottom: '1px solid #1e2d3d', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 },
-    body:     { display: 'flex', flex: 1, minHeight: 0 },
-    sidebar:  { width: 196, background: '#0a1628', borderRight: '1px solid #1e2d3d', display: 'flex', flexDirection: 'column', padding: '12px 8px', gap: 2, flexShrink: 0 },
-    main:     { flex: 1, padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 },
+    page:     { height: '100vh', overflow: 'hidden', background: '#060e1a', display: 'flex', flexDirection: 'column', fontFamily: 'inherit', color: '#e2e8f0' },
+    header:   { padding: '0 20px', height: 56, background: '#0a1628', borderBottom: '1px solid #1e2d3d', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, minWidth: 0 },
+    body:     { display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' },
+    sidebar:  { width: 220, minWidth: 180, background: '#0a1628', borderRight: '1px solid #1e2d3d', display: 'flex', flexDirection: 'column', padding: '12px 8px', gap: 1, flexShrink: 0, overflowY: 'auto' },
+    main:     { flex: 1, minWidth: 0, padding: '16px 18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 },
     table:    { width: '100%', borderCollapse: 'collapse' },
     input:    { background: '#060e1a', border: '1px solid #1e2d3d', borderRadius: 8, padding: '7px 12px', fontSize: 12, color: '#e2e8f0', outline: 'none', fontFamily: 'inherit' },
     btn:      { background: 'rgba(0,212,255,0.07)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 8, padding: '6px 14px', fontSize: 12, color: '#00d4ff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 },
     redBtn:   { background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '6px 14px', fontSize: 12, color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 },
     iconBtn:  { background: 'rgba(255,255,255,0.04)', border: '1px solid #1e2d3d', borderRadius: 6, width: 28, height: 28, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-    kpiGrid:  { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 },
-    overlay:  { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    modal:    { background: '#0f1923', border: '1px solid #1e2d3d', borderRadius: 16, padding: 28, width: 440, display: 'flex', flexDirection: 'column', gap: 16 },
+    kpiGrid:  { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 10 },
+    overlay:  { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
+    modal:    { background: '#0f1923', border: '1px solid #1e2d3d', borderRadius: 16, padding: 24, width: '100%', maxWidth: 440, maxHeight: 'calc(100vh - 60px)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 },
   }
-
-  const ALL_TABS = [
-    { key: 'users',    label: '사용자 목록',    Icon: Users    },
-    { key: 'perms',    label: '권한 매트릭스',  Icon: Key      },
-    { key: 'history',  label: '로그인 이력',    Icon: Clock    },
-    { key: 'audit',    label: '감사 로그',      Icon: Activity },
-    { key: 'sessions', label: '세션 관리',      Icon: Monitor  },
-    { key: 'security', label: '보안 설정',      Icon: Shield   },
-    { key: 'admins',   label: '관리자 계정',    Icon: ShieldAlert },
-  ]
-  const NAV_TABS = ALL_TABS.filter(t => allowedTabs.includes(t.key))
 
   const KPI = [
     { label: '전체 사용자',  value: users.length,        color: '#00d4ff', Icon: Users    },
@@ -307,6 +380,12 @@ export default function Admin({ user, onLogout }) {
     { label: '잠금 계정',    value: `${lockedCount}개`,  color: '#ef4444', Icon: Lock     },
     { label: '7일 미접속',  value: `${inactiveCount}명`, color: '#f59e0b', Icon: Clock    },
   ]
+
+  // 허용된 탭만 포함된 그룹 목록
+  const visibleGroups = SIDEBAR_GROUPS.map(g => ({
+    ...g,
+    items: g.items.filter(item => allowedTabs.includes(item.key)),
+  })).filter(g => g.items.length > 0)
 
   return (
     <div style={S.page}>
@@ -325,8 +404,11 @@ export default function Admin({ user, onLogout }) {
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ fontSize: 11, color: '#334155', fontFamily: 'Share Tech Mono' }}>{new Date().toLocaleDateString('ko-KR')} {new Date().toLocaleTimeString('ko-KR', { hour12: false })}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div style={{ fontSize: 10, color: '#334155', fontFamily: 'Share Tech Mono', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+            <span>{new Date().toLocaleDateString('ko-KR')}</span>
+            <span style={{ color: '#1e3a5f' }}>{new Date().toLocaleTimeString('ko-KR', { hour12: false })}</span>
+          </div>
           <button style={S.redBtn} onClick={onLogout}>
             <LogOut size={12} /> 로그아웃
           </button>
@@ -336,31 +418,102 @@ export default function Admin({ user, onLogout }) {
       {/* ── 바디 ── */}
       <div style={S.body}>
 
-        {/* 사이드바 */}
+        {/* ── 아코디언 사이드바 ── */}
         <aside style={S.sidebar}>
-          <div style={{ fontSize: 10, color: '#1e3a5f', letterSpacing: 1.5, padding: '4px 8px 10px', textTransform: 'uppercase', fontWeight: 700 }}>관리 메뉴</div>
-          {NAV_TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px', borderRadius: 8, border: tab === t.key ? '1px solid rgba(239,68,68,0.25)' : '1px solid transparent', background: tab === t.key ? 'rgba(239,68,68,0.07)' : 'none', color: tab === t.key ? '#ef4444' : '#475569', cursor: 'pointer', fontSize: 12, fontWeight: tab === t.key ? 600 : 400, transition: 'all 0.15s', textAlign: 'left' }}>
-              <t.Icon size={14} />
-              {t.label}
-            </button>
-          ))}
+          <div style={{ fontSize: 9, color: '#1e3a5f', letterSpacing: 1.5, padding: '2px 8px 10px', textTransform: 'uppercase', fontWeight: 700 }}>관리 메뉴</div>
+
+          {visibleGroups.map(group => {
+            const isOpen = openGroups.includes(group.key)
+            const hasActive = group.items.some(i => i.key === tab)
+            return (
+              <div key={group.key} style={{ marginBottom: 2 }}>
+                {/* 그룹 헤더 */}
+                <button
+                  onClick={() => toggleGroup(group.key)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    width: '100%', padding: '8px 10px', borderRadius: 8,
+                    background: hasActive ? 'rgba(239,68,68,0.05)' : 'transparent',
+                    border: '1px solid transparent',
+                    color: hasActive ? '#dc2626' : '#475569',
+                    cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
+                    letterSpacing: 0.7, textTransform: 'uppercase', transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <group.Icon size={12} />
+                    {group.label}
+                  </div>
+                  <ChevronDown
+                    size={11}
+                    color={hasActive ? '#dc2626' : '#334155'}
+                    style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}
+                  />
+                </button>
+
+                {/* 서브 메뉴 */}
+                {isOpen && (
+                  <div style={{ paddingLeft: 10, display: 'flex', flexDirection: 'column', gap: 1, marginTop: 2, marginBottom: 4 }}>
+                    {group.items.map(item => (
+                      <button
+                        key={item.key}
+                        onClick={() => setTab(item.key)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '7px 10px', borderRadius: 7,
+                          border: tab === item.key ? '1px solid rgba(239,68,68,0.25)' : '1px solid transparent',
+                          background: tab === item.key ? 'rgba(239,68,68,0.07)' : 'transparent',
+                          color: tab === item.key ? '#ef4444' : '#64748b',
+                          cursor: 'pointer', fontSize: 12,
+                          fontWeight: tab === item.key ? 600 : 400,
+                          transition: 'all 0.15s', textAlign: 'left',
+                        }}
+                      >
+                        <item.Icon size={12} />
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {/* 관리자 계정 (독립 메뉴) */}
+          {allowedTabs.includes('admins') && (
+            <>
+              <div style={{ height: 1, background: 'rgba(239,68,68,0.15)', margin: '8px 2px' }} />
+              <button
+                onClick={() => setTab('admins')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px', borderRadius: 8,
+                  border: tab === 'admins' ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(239,68,68,0.12)',
+                  background: tab === 'admins' ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.03)',
+                  color: tab === 'admins' ? '#ef4444' : '#7f1d1d',
+                  cursor: 'pointer', fontSize: 12, fontWeight: tab === 'admins' ? 600 : 400,
+                  transition: 'all 0.15s', textAlign: 'left', width: '100%',
+                }}
+              >
+                <ShieldAlert size={13} />
+                관리자 계정
+              </button>
+            </>
+          )}
         </aside>
 
-        {/* 메인 */}
+        {/* ── 메인 ── */}
         <main style={S.main}>
 
           {/* KPI */}
           <div style={S.kpiGrid}>
             {KPI.map(k => (
-              <div key={k.label} style={{ background: '#0f1923', border: '1px solid #1e2d3d', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ width: 38, height: 38, borderRadius: 9, background: `${k.color}18`, border: `1px solid ${k.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <k.Icon size={17} color={k.color} />
+              <div key={k.label} style={{ background: '#0f1923', border: '1px solid #1e2d3d', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: `${k.color}18`, border: `1px solid ${k.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <k.Icon size={15} color={k.color} />
                 </div>
-                <div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: k.color, fontFamily: 'Rajdhani', lineHeight: 1 }}>{k.value}</div>
-                  <div style={{ fontSize: 11, color: '#475569', marginTop: 3 }}>{k.label}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: k.color, fontFamily: 'Rajdhani', lineHeight: 1 }}>{k.value}</div>
+                  <div style={{ fontSize: 10, color: '#475569', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</div>
                 </div>
               </div>
             ))}
@@ -375,7 +528,7 @@ export default function Admin({ user, onLogout }) {
                 </button>
               }
             >
-              {/* 검색 + 필터 */}
+              {/* 검색 + 역할 필터 */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
                   <Search size={12} color="#475569" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -394,12 +547,33 @@ export default function Admin({ user, onLogout }) {
                 </div>
               </div>
 
+              {/* 회사 필터 */}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginRight: 4 }}>
+                  <Building2 size={11} color="#475569" />
+                  <span style={{ fontSize: 11, color: '#475569' }}>회사:</span>
+                </div>
+                {uniqueCompanies.map(c => (
+                  <button key={c}
+                    style={{
+                      ...S.btn,
+                      background: companyFilter === c ? 'rgba(139,92,246,0.14)' : 'rgba(255,255,255,0.03)',
+                      borderColor: companyFilter === c ? 'rgba(139,92,246,0.4)' : '#1e2d3d',
+                      color: companyFilter === c ? '#8b5cf6' : '#475569',
+                      padding: '5px 10px', fontSize: 11,
+                    }}
+                    onClick={() => setCompanyFilter(c)}>
+                    {c === '전체' ? '전체 회사' : c}
+                  </button>
+                ))}
+              </div>
+
               {/* 테이블 */}
               <div style={{ overflowX: 'auto' }}>
                 <table style={S.table}>
                   <thead>
                     <tr>
-                      <Th>#</Th><Th>이름</Th><Th>이메일</Th><Th>역할</Th><Th>플랜</Th>
+                      <Th>#</Th><Th>이름</Th><Th>이메일</Th><Th>회사</Th><Th>역할</Th><Th>플랜</Th>
                       <Th>상태</Th><Th>마지막 로그인</Th><Th>접근 구역</Th><Th>잠금</Th><Th>관리</Th>
                     </tr>
                   </thead>
@@ -414,6 +588,12 @@ export default function Admin({ user, onLogout }) {
                           </div>
                         </Td>
                         <Td style={{ color: '#64748b', fontSize: 11 }}>{u.email}</Td>
+                        <Td>
+                          <span style={{ fontSize: 11, color: u.company === '개인' ? '#64748b' : '#8b5cf6', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {u.company !== '개인' && <Building2 size={10} color="#8b5cf6" />}
+                            {u.company}
+                          </span>
+                        </Td>
                         <Td>
                           {editingRole === u.id ? (
                             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -467,7 +647,7 @@ export default function Admin({ user, onLogout }) {
                       </tr>
                     ))}
                     {filteredUsers.length === 0 && (
-                      <tr><td colSpan={10} style={{ padding: '24px', textAlign: 'center', color: '#334155', fontSize: 12 }}>검색 결과가 없습니다.</td></tr>
+                      <tr><td colSpan={11} style={{ padding: '24px', textAlign: 'center', color: '#334155', fontSize: 12 }}>검색 결과가 없습니다.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -486,7 +666,7 @@ export default function Admin({ user, onLogout }) {
                   </div>
                   <button style={S.iconBtn} onClick={() => setShowAddUser(false)}><X size={13} color="#475569" /></button>
                 </div>
-                {[{ label: '이름', key: 'name', placeholder: '홍길동' }, { label: '이메일', key: 'email', placeholder: 'user@company.com' }].map(f => (
+                {[{ label: '이름', key: 'name', placeholder: '홍길동' }, { label: '이메일', key: 'email', placeholder: 'user@company.com' }, { label: '회사', key: 'company', placeholder: '회사명 또는 개인' }].map(f => (
                   <div key={f.key}>
                     <div style={{ fontSize: 11, color: '#475569', marginBottom: 5 }}>{f.label}</div>
                     <input style={{ ...S.input, width: '100%', boxSizing: 'border-box' }}
@@ -524,10 +704,33 @@ export default function Admin({ user, onLogout }) {
             </div>
           )}
 
-          {/* ════ 탭: 권한 매트릭스 ════ */}
+          {/* ════ 탭: 권한 부여 ════ */}
           {tab === 'perms' && (
             <>
-              <Card title="역할별 권한 매트릭스" icon={Key} iconColor="#8b5cf6">
+              <Card title="역할별 권한 설정" icon={Key} iconColor="#8b5cf6"
+                action={
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {permsChanged && (
+                      <button style={{ ...S.btn, background: 'transparent', borderColor: '#1e2d3d', color: '#475569', fontSize: 11 }} onClick={resetPendingPerms}>
+                        <X size={11} /> 되돌리기
+                      </button>
+                    )}
+                    <button
+                      style={{ ...S.btn, background: permsChanged ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.03)', borderColor: permsChanged ? 'rgba(16,185,129,0.4)' : '#1e2d3d', color: permsChanged ? '#10b981' : '#334155', cursor: permsChanged ? 'pointer' : 'default' }}
+                      onClick={applyPerms}
+                      disabled={!permsChanged}
+                    >
+                      <Save size={12} /> 적용
+                    </button>
+                  </div>
+                }
+              >
+                {permsChanged && (
+                  <div style={{ fontSize: 11, color: '#f59e0b', padding: '6px 12px', background: 'rgba(245,158,11,0.08)', borderRadius: 7, border: '1px solid rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <AlertTriangle size={12} color="#f59e0b" />
+                    변경 사항이 있습니다. [적용] 버튼을 눌러야 DB에 반영됩니다.
+                  </div>
+                )}
                 <div style={{ overflowX: 'auto' }}>
                   <table style={S.table}>
                     <thead>
@@ -543,7 +746,7 @@ export default function Admin({ user, onLogout }) {
                           {PERM_COLS.map(role => (
                             <Td key={role}>
                               <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }} onClick={() => togglePerm(role, i)} title="클릭하여 토글">
-                                {perms[role][i]
+                                {pendingPerms[role][i]
                                   ? <CheckCircle size={17} color="#10b981" />
                                   : <XCircle size={17} color="#1e2d3d" />
                                 }
@@ -555,7 +758,7 @@ export default function Admin({ user, onLogout }) {
                     </tbody>
                   </table>
                 </div>
-                <div style={{ fontSize: 11, color: '#1e3a5f', textAlign: 'right' }}>※ 클릭하여 토글 · 실제 반영은 백엔드 연동 후 적용됩니다.</div>
+                <div style={{ fontSize: 11, color: '#1e3a5f', textAlign: 'right' }}>※ 클릭하여 토글 후 [적용] 버튼을 눌러야 DB에 반영됩니다.</div>
               </Card>
 
               <Card title="사용자별 접근 구역" icon={MapPin} iconColor="#10b981">
@@ -681,9 +884,9 @@ export default function Admin({ user, onLogout }) {
             </Card>
           )}
 
-          {/* ════ 탭: 세션 관리 ════ */}
+          {/* ════ 탭: 실시간 접속 현황 ════ */}
           {tab === 'sessions' && (
-            <Card title="활성 세션 관리" icon={Monitor} iconColor="#10b981"
+            <Card title="실시간 접속 현황" icon={Monitor} iconColor="#10b981"
               action={
                 sessions.length > 0 && (
                   <button style={S.redBtn} onClick={forceLogoutAll}>
@@ -783,7 +986,7 @@ export default function Admin({ user, onLogout }) {
                 </div>
               </Card>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
                 <Card title="세션 & 로그인 설정" icon={Clock}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                     <div>
@@ -829,6 +1032,35 @@ export default function Admin({ user, onLogout }) {
                   </div>
                 </Card>
               </div>
+
+              {/* 회사별 로그인 옵션 */}
+              <Card title="회사별 로그인 설정" icon={Building2} iconColor="#00d4ff">
+                <div style={{ fontSize: 11, color: '#475569', marginBottom: 4 }}>
+                  각 기업 계정의 로그인 인증 방식을 개별 설정합니다.
+                </div>
+                {companyLoginOptions.map(co => (
+                  <div key={co.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #1e2d3d' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Building2 size={12} color="#8b5cf6" />
+                      <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 500 }}>{co.name}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <span style={{ fontSize: 11, color: '#475569' }}>사원번호 인증</span>
+                        <button onClick={() => toggleCompanyOpt(co.name, 'requireEmployeeId')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                          {co.requireEmployeeId ? <CheckCircle size={20} color="#10b981" /> : <XCircle size={20} color="#1e2d3d" />}
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <span style={{ fontSize: 11, color: '#475569' }}>IP 접근 제한</span>
+                        <button onClick={() => toggleCompanyOpt(co.name, 'ipRestriction')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                          {co.ipRestriction ? <CheckCircle size={20} color="#10b981" /> : <XCircle size={20} color="#1e2d3d" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </Card>
             </>
           )}
 
@@ -884,6 +1116,27 @@ export default function Admin({ user, onLogout }) {
 
         </main>
       </div>
+
+      {/* ── 이메일 발송 토스트 ── */}
+      {emailNotif && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24,
+          background: '#0f1923', border: '1px solid rgba(16,185,129,0.35)',
+          borderRadius: 12, padding: '14px 18px', zIndex: 99999,
+          display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          animation: 'fadeToastIn 0.3s ease',
+        }}>
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Mail size={15} color="#10b981" />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600, marginBottom: 3 }}>이메일 자동 발송 완료</div>
+            <div style={{ fontSize: 11, color: '#475569' }}>{emailNotif.name} · 계정 잠금 알림</div>
+            <div style={{ fontSize: 10, color: '#334155', fontFamily: 'Share Tech Mono', marginTop: 1 }}>{emailNotif.email}</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

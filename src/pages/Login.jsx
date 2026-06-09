@@ -53,6 +53,7 @@ const ROLE_BADGE = {
 
 export default function Login({ onLogin, onBack }) {
   const [step, setStep]                     = useState(1)
+  const [accountType, setAccountType]       = useState('individual') // 'individual' | 'corporate'
   const [email, setEmail]                   = useState('')
   const [password, setPassword]             = useState('')
   const [showPw, setShowPw]                 = useState(false)
@@ -71,16 +72,20 @@ export default function Login({ onLogin, onBack }) {
     if (USE_MOCK) {
       await new Promise(r => setTimeout(r, 400))
 
+      // 관리자 계정은 타입 무관하게 허용
       const adminAcc = ADMIN_ACCOUNTS.find(a => a.email === email && a.password === password)
       if (adminAcc) { onLogin(adminAcc.user); setLoading(false); return }
 
-      const companyAcc = COMPANY_ACCOUNTS.find(a => a.email === email && a.password === password)
-      if (companyAcc) { setPendingCompany(companyAcc); setStep(2); setLoading(false); return }
+      if (accountType === 'corporate') {
+        const companyAcc = COMPANY_ACCOUNTS.find(a => a.email === email && a.password === password)
+        if (companyAcc) { setPendingCompany(companyAcc); setStep(2); setLoading(false); return }
+        setError('기업 계정 정보가 올바르지 않습니다.')
+      } else {
+        const indAcc = INDIVIDUAL_ACCOUNTS.find(a => a.email === email && a.password === password)
+        if (indAcc) { onLogin(indAcc.user); setLoading(false); return }
+        setError('이메일 또는 비밀번호가 올바르지 않습니다.')
+      }
 
-      const indAcc = INDIVIDUAL_ACCOUNTS.find(a => a.email === email && a.password === password)
-      if (indAcc) { onLogin(indAcc.user); setLoading(false); return }
-
-      setError('이메일 또는 비밀번호가 올바르지 않습니다.')
       setLoading(false)
       return
     }
@@ -130,13 +135,28 @@ export default function Login({ onLogin, onBack }) {
       setLoading(false)
       return
     }
-    // TODO: 실제 API 연동 시 사원번호 검증 엔드포인트 호출
     setLoading(false)
   }
 
   const goBackToStep1 = () => { setStep(1); setError(''); setEmployeeId(''); setPendingCompany(null) }
-  const fillStep1 = (em, pw) => { setEmail(em); setPassword(pw); setError(''); setStep(1); setEmployeeId(''); setPendingCompany(null) }
+
+  const fillStep1 = (em, pw, type = 'individual') => {
+    setEmail(em)
+    setPassword(pw)
+    setAccountType(type)
+    setError('')
+    setStep(1)
+    setEmployeeId('')
+    setPendingCompany(null)
+  }
+
   const fillStep2 = (id) => { setEmployeeId(id); setError('') }
+
+  // 계정 타입 전환 시 에러 초기화
+  const handleTypeChange = (type) => {
+    setAccountType(type)
+    setError('')
+  }
 
   return (
     <div className="login-page">
@@ -166,13 +186,42 @@ export default function Login({ onLogin, onBack }) {
         {step === 1 && (
           <>
             <h2 className="login-title">로그인</h2>
-            <p className="login-sub">계정에 로그인하여 관제 시스템을 시작하세요.</p>
+            <p className="login-sub">계정 유형을 선택하고 로그인하세요.</p>
+
+            {/* 개인 / 기업 라디오 버튼 */}
+            <div className="login-type-selector">
+              <button
+                type="button"
+                className={`login-type-btn ${accountType === 'individual' ? 'active' : ''}`}
+                onClick={() => handleTypeChange('individual')}
+              >
+                <User size={14} />
+                개인
+              </button>
+              <button
+                type="button"
+                className={`login-type-btn ${accountType === 'corporate' ? 'active' : ''}`}
+                onClick={() => handleTypeChange('corporate')}
+              >
+                <Building2 size={14} />
+                기업
+              </button>
+            </div>
+
+            {/* 기업 선택 시 안내 배너 */}
+            {accountType === 'corporate' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'rgba(139,92,246,0.07)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 8, marginBottom: 8, fontSize: 11, color: '#a78bfa' }}>
+                <Building2 size={12} color="#a78bfa" />
+                기업 계정은 로그인 후 사원 번호 추가 인증이 필요합니다.
+              </div>
+            )}
 
             <form className="login-form" onSubmit={handleStep1}>
               <div className="login-field">
                 <label>이메일</label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="company@example.com" autoComplete="email" />
+                  placeholder={accountType === 'corporate' ? 'company@example.com' : 'user@example.com'}
+                  autoComplete="email" />
               </div>
               <div className="login-field">
                 <label>비밀번호</label>
@@ -186,7 +235,7 @@ export default function Login({ onLogin, onBack }) {
               </div>
               {error && <div className="login-error"><AlertCircle size={13} /> {error}</div>}
               <button type="submit" className="login-submit" disabled={loading}>
-                {loading ? <><Loader size={14} className="spin" /> 확인 중…</> : '다음'}
+                {loading ? <><Loader size={14} className="spin" /> 확인 중…</> : accountType === 'corporate' ? '다음 (사원 번호 인증)' : '로그인'}
               </button>
             </form>
 
@@ -194,8 +243,8 @@ export default function Login({ onLogin, onBack }) {
               <div className="login-demo">
                 <div className="login-demo-label">데모 계정으로 빠르게 체험</div>
 
-                {COMPANY_ACCOUNTS.map((a, i) => (
-                  <button key={i} className="login-demo-btn" onClick={() => fillStep1(a.email, a.password)}>
+                {accountType === 'corporate' && COMPANY_ACCOUNTS.map((a, i) => (
+                  <button key={i} className="login-demo-btn" onClick={() => fillStep1(a.email, a.password, 'corporate')}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <Building2 size={12} color="#475569" style={{ flexShrink: 0 }} />
                       <div>
@@ -207,8 +256,8 @@ export default function Login({ onLogin, onBack }) {
                   </button>
                 ))}
 
-                {INDIVIDUAL_ACCOUNTS.map((a, i) => (
-                  <button key={i} className="login-demo-btn" onClick={() => fillStep1(a.email, a.password)}>
+                {accountType === 'individual' && INDIVIDUAL_ACCOUNTS.map((a, i) => (
+                  <button key={i} className="login-demo-btn" onClick={() => fillStep1(a.email, a.password, 'individual')}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <User size={12} color="#475569" style={{ flexShrink: 0 }} />
                       <div>
@@ -222,7 +271,7 @@ export default function Login({ onLogin, onBack }) {
 
                 <div style={{ borderTop: '1px solid rgba(239,68,68,0.15)', marginTop: 6, paddingTop: 6 }}>
                   {ADMIN_ACCOUNTS.map((a, i) => (
-                    <button key={i} className="login-demo-btn" onClick={() => fillStep1(a.email, a.password)}
+                    <button key={i} className="login-demo-btn" onClick={() => fillStep1(a.email, a.password, 'individual')}
                       style={{ borderColor: 'rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.04)' }}>
                       <div>
                         <div style={{ fontSize: 11.5, color: '#fca5a5' }}>Admin · {a.user.name} ({a.user.adminLevel})</div>
