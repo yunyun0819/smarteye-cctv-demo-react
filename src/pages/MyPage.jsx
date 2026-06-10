@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Building2, Camera, Users, Shield, CreditCard,
   Edit3, Save, BarChart3, Activity, TrendingUp,
-  Monitor, MapPin, History, Lock,
+  Monitor, History, Lock, MapPin,
 } from 'lucide-react'
 import { cameraApi, userApi } from '../api'
 
@@ -97,8 +97,7 @@ export default function MyPage({ user }) {
 
   const onlineCnt  = cameras.filter(c => c.status === 'online').length
   const maxCameras = user?.cameras === -1 ? Infinity : (user?.cameras || 8)
-  const zones      = [...new Set(cameras.map(c => c.zone))]
-  const myZones    = user?.role === '관리자' ? zones : zones.slice(0, 2)
+  const maxLevel   = user?.max_security_level ?? 99
 
   return (
     <div className="content">
@@ -217,8 +216,8 @@ export default function MyPage({ user }) {
           </div>
         </InfoCard>
 
-        {/* 내 권한 및 접근 구역 */}
-        <InfoCard title="내 권한 및 접근 구역" icon={Shield} color="#8b5cf6">
+        {/* 내 권한 및 보안 레벨 */}
+        <InfoCard title="내 권한 및 보안 레벨" icon={Shield} color="#8b5cf6">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: roleConf.bg, border: `1px solid ${roleConf.border}`, borderRadius: 8 }}>
               <Shield size={18} color={roleConf.color} />
@@ -228,16 +227,24 @@ export default function MyPage({ user }) {
               </div>
             </div>
 
-            <div>
-              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <MapPin size={10} /> 접근 가능 구역
+            {maxLevel !== 99 && (
+              <div>
+                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Shield size={10} /> 카메라 접근 보안 레벨
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[1, 2, 3].map(lv => {
+                    const active = lv <= maxLevel
+                    const color = lv === 3 ? '#ef4444' : lv === 2 ? '#f59e0b' : '#10b981'
+                    return (
+                      <span key={lv} style={{ padding: '4px 14px', borderRadius: 20, fontSize: 11, fontWeight: active ? 700 : 400, background: active ? `${color}15` : 'rgba(255,255,255,0.02)', border: `1px solid ${active ? color : '#1e2d3d'}`, color: active ? color : '#334155' }}>
+                        Lv.{lv}
+                      </span>
+                    )
+                  })}
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {myZones.map(z => (
-                  <span key={z} className="section-badge" style={{ fontSize: 10 }}>{z}</span>
-                ))}
-              </div>
-            </div>
+            )}
 
             <div>
               <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -305,7 +312,7 @@ export default function MyPage({ user }) {
                 <span style={{ fontSize: 11, color: '#e2e8f0', fontWeight: 500 }}>{cam.name}</span>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: cam.status === 'online' ? '#10b981' : cam.status === 'offline' ? '#ef4444' : '#f59e0b' }} />
               </div>
-              <div style={{ fontSize: 10, color: '#475569' }}>{cam.zone} · {cam.resolution}</div>
+              <div style={{ fontSize: 10, color: '#475569' }}>{cam.location || '—'} · {cam.resolution}</div>
             </div>
           ))}
         </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Camera, Users, Car, AlertTriangle, BarChart3,
   Activity, TrendingUp, TrendingDown, VolumeX, Maximize2,
-  ChevronRight, LogIn, LogOut, Shield, MapPin, Lock,
+  ChevronRight, LogIn, LogOut, Shield,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -18,10 +18,6 @@ const gradients = [
   'linear-gradient(135deg, #0a0a0a 0%, #141414 50%, #0a0a0a 100%)',
 ]
 
-const ZONE_COLOR = {
-  'ZONE-A': '#00d4ff', 'ZONE-B': '#10b981',
-  'ZONE-C': '#f59e0b', 'ZONE-D': '#8b5cf6', 'ZONE-E': '#64748b',
-}
 
 function CameraFeed({ cam, index }) {
   return (
@@ -54,7 +50,7 @@ function CameraFeed({ cam, index }) {
         )}
         <div className="cam-bar">
           <span className="cam-time">
-            {cam.zone} · {new Date().toLocaleTimeString('ko-KR', { hour12: false }).slice(0, 5)}
+            {cam.location || '—'} · {new Date().toLocaleTimeString('ko-KR', { hour12: false }).slice(0, 5)}
           </span>
           <div className="cam-controls">
             <button className="cam-btn"><VolumeX size={10} /></button>
@@ -102,8 +98,6 @@ const LAYOUTS = [
   { label: '4×4', cols: 4, count: 16 },
 ]
 
-const ALL_ZONES = ['ZONE-A', 'ZONE-B', 'ZONE-C', 'ZONE-D', 'ZONE-E']
-
 export default function Dashboard({ user }) {
   const [cameras, setCameras] = useState([])
   const [events, setEvents] = useState([])
@@ -111,11 +105,9 @@ export default function Dashboard({ user }) {
   const [personData, setPersonData] = useState([])
   const [newEvents, setNewEvents] = useState([])
   const [layoutIdx, setLayoutIdx] = useState(0)
-  const [zoneFilter, setZoneFilter] = useState('전체')
 
-  // 사용자 접근 가능 존
-  const userZones = user?.zones || ALL_ZONES
-  const accessibleZones = ALL_ZONES.filter(z => userZones.includes(z))
+  // 개인/관리자는 전체(99), 기업 사원은 max_security_level 기준으로 접근 제한
+  const maxLevel = user?.max_security_level ?? 99
 
   useEffect(() => {
     cameraApi.getAll().then(setCameras)
@@ -137,31 +129,17 @@ export default function Dashboard({ user }) {
     return () => clearInterval(interval)
   }, [])
 
-  // 접근 가능 존만 필터링 후 존 정렬
+  // 보안 레벨 기준 접근 가능 카메라 필터링
   const accessibleCameras = cameras
-    .filter(c => userZones.includes(c.zone))
-    .sort((a, b) => a.zone.localeCompare(b.zone))
-
-  // 존 필터 적용
-  const filteredCameras = zoneFilter === '전체'
-    ? accessibleCameras
-    : accessibleCameras.filter(c => c.zone === zoneFilter)
+    .filter(c => !c.security_level || c.security_level <= maxLevel)
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   const layout = LAYOUTS[layoutIdx]
-  const displayCameras = filteredCameras.slice(0, layout.count)
+  const displayCameras = accessibleCameras.slice(0, layout.count)
   const onlineCnt = accessibleCameras.filter(c => c.status === 'online').length
   const totalPersons = accessibleCameras.reduce((s, c) => s + (c.persons || 0), 0)
   const alertVehicles = vehicles.filter(v => v.isBlacklist).length
   const feedList = [...newEvents, ...events].slice(0, 10)
-
-  // 존별 카메라 수 (접근 가능 존만)
-  const zoneCounts = accessibleZones.map(z => ({
-    zone: z,
-    count: accessibleCameras.filter(c => c.zone === z).length,
-    online: accessibleCameras.filter(c => c.zone === z && c.status === 'online').length,
-  }))
-
-  const lockedZones = ALL_ZONES.filter(z => !userZones.includes(z))
 
   return (
     <div className="content">
@@ -172,50 +150,6 @@ export default function Dashboard({ user }) {
         <KpiCard icon={AlertTriangle} value={`${alertVehicles}건`}                          label="번호판 인식 알림"  color="#ef4444" trend={-2} />
       </div>
 
-      {/* 존 필터 바 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '6px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginRight: 4 }}>
-          <MapPin size={12} color="#475569" />
-          <span style={{ fontSize: 11, color: '#475569' }}>구역 필터</span>
-        </div>
-        <button
-          onClick={() => setZoneFilter('전체')}
-          style={{
-            padding: '4px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 11,
-            background: zoneFilter === '전체' ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
-            border: `1px solid ${zoneFilter === '전체' ? 'rgba(0,212,255,0.4)' : '#1e2d3d'}`,
-            color: zoneFilter === '전체' ? '#00d4ff' : '#475569',
-          }}
-        >
-          전체 ({accessibleCameras.length})
-        </button>
-        {zoneCounts.map(({ zone, count, online }) => {
-          const zc = ZONE_COLOR[zone] || '#64748b'
-          const active = zoneFilter === zone
-          return (
-            <button
-              key={zone}
-              onClick={() => setZoneFilter(zone)}
-              style={{
-                padding: '4px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 11,
-                background: active ? `${zc}18` : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${active ? zc : '#1e2d3d'}`,
-                color: active ? zc : '#475569',
-                display: 'flex', alignItems: 'center', gap: 5,
-              }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: zc, display: 'inline-block' }} />
-              {zone} ({online}/{count})
-            </button>
-          )
-        })}
-        {lockedZones.map(z => (
-          <span key={z} style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(255,255,255,0.02)', border: '1px solid #1e2d3d', color: '#1e3a5f', display: 'flex', alignItems: 'center', gap: 4, cursor: 'not-allowed' }}>
-            <Lock size={9} color="#1e3a5f" /> {z}
-          </span>
-        ))}
-      </div>
-
       <div className="mid-row">
         <section className="cam-section">
           <div className="section-header">
@@ -224,7 +158,6 @@ export default function Dashboard({ user }) {
               <span>실시간 CCTV 모니터링</span>
               <span className="section-badge">
                 {displayCameras.length} / {accessibleCameras.length} 채널
-                {zoneFilter !== '전체' && ` · ${zoneFilter}`}
               </span>
             </div>
             <div className="grid-controls">

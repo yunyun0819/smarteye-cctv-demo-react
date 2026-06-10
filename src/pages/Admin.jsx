@@ -8,16 +8,14 @@ import {
 } from 'lucide-react'
 
 // ── Mock Data ──────────────────────────────────────────────────
-const ZONES = ['ZONE-A', 'ZONE-B', 'ZONE-C', 'ZONE-D', 'ZONE-E']
-
 const INIT_USERS = [
-  { id: 1, name: '김관리자',  email: 'demo@company.com',     role: '관리자', tier: 'Pro',        status: 'online',  lastLogin: '2026-06-05 14:30', joinDate: '2025-01-15', zones: ['ZONE-A','ZONE-B','ZONE-C','ZONE-D','ZONE-E'], failedLogins: 0, locked: false, company: '스마트 물류 주식회사' },
-  { id: 2, name: '이공장장',  email: 'admin@factory.kr',     role: '관리자', tier: 'Enterprise', status: 'online',  lastLogin: '2026-06-05 11:45', joinDate: '2024-12-01', zones: ['ZONE-A','ZONE-B','ZONE-C','ZONE-D','ZONE-E'], failedLogins: 0, locked: false, company: '한국 공장 관리' },
-  { id: 3, name: '박테스트',  email: 'test@test.com',        role: '운영자', tier: 'Basic',      status: 'offline', lastLogin: '2026-06-03 16:20', joinDate: '2026-01-10', zones: ['ZONE-A','ZONE-B'],                        failedLogins: 0, locked: false, company: '개인' },
-  { id: 4, name: '최보안',    email: 'security@smarteye.kr', role: '운영자', tier: 'Pro',        status: 'offline', lastLogin: '2026-05-28 10:30', joinDate: '2025-08-01', zones: ['ZONE-C','ZONE-D'],                        failedLogins: 0, locked: false, company: 'SmartEye' },
-  { id: 5, name: '정경비',    email: 'guard@smarteye.kr',    role: '뷰어',   tier: 'Basic',      status: 'offline', lastLogin: '2026-05-20 08:15', joinDate: '2025-11-30', zones: ['ZONE-A'],                                 failedLogins: 3, locked: true,  company: 'SmartEye' },
-  { id: 6, name: '이경비',    email: 'ops@smarteye.kr',      role: '운영자', tier: 'Pro',        status: 'online',  lastLogin: '2026-06-05 09:15', joinDate: '2025-03-22', zones: ['ZONE-A','ZONE-B','ZONE-C'],               failedLogins: 0, locked: false, company: '스마트 물류 주식회사' },
-  { id: 7, name: '박모니터',  email: 'monitor@smarteye.kr',  role: '뷰어',   tier: 'Pro',        status: 'offline', lastLogin: '2026-06-04 18:00', joinDate: '2025-06-10', zones: ['ZONE-A','ZONE-B'],                        failedLogins: 1, locked: false, company: '스마트 물류 주식회사' },
+  { id: 1, name: '김관리자',  email: 'demo@company.com',     role: '관리자', tier: 'Pro',        status: 'online',  lastLogin: '2026-06-05 14:30', joinDate: '2025-01-15', max_security_level: 3, failedLogins: 0, locked: false, company: '스마트 물류 주식회사' },
+  { id: 2, name: '이공장장',  email: 'admin@factory.kr',     role: '관리자', tier: 'Enterprise', status: 'online',  lastLogin: '2026-06-05 11:45', joinDate: '2024-12-01', max_security_level: 3, failedLogins: 0, locked: false, company: '한국 공장 관리' },
+  { id: 3, name: '박테스트',  email: 'test@test.com',        role: '운영자', tier: 'Basic',      status: 'offline', lastLogin: '2026-06-03 16:20', joinDate: '2026-01-10', max_security_level: 2, failedLogins: 0, locked: false, company: '개인' },
+  { id: 4, name: '최보안',    email: 'security@smarteye.kr', role: '운영자', tier: 'Pro',        status: 'offline', lastLogin: '2026-05-28 10:30', joinDate: '2025-08-01', max_security_level: 2, failedLogins: 0, locked: false, company: 'SmartEye' },
+  { id: 5, name: '정경비',    email: 'guard@smarteye.kr',    role: '뷰어',   tier: 'Basic',      status: 'offline', lastLogin: '2026-05-20 08:15', joinDate: '2025-11-30', max_security_level: 1, failedLogins: 3, locked: true,  company: 'SmartEye' },
+  { id: 6, name: '이경비',    email: 'ops@smarteye.kr',      role: '운영자', tier: 'Pro',        status: 'online',  lastLogin: '2026-06-05 09:15', joinDate: '2025-03-22', max_security_level: 2, failedLogins: 0, locked: false, company: '스마트 물류 주식회사' },
+  { id: 7, name: '박모니터',  email: 'monitor@smarteye.kr',  role: '뷰어',   tier: 'Pro',        status: 'offline', lastLogin: '2026-06-04 18:00', joinDate: '2025-06-10', max_security_level: 1, failedLogins: 1, locked: false, company: '스마트 물류 주식회사' },
 ]
 
 const LOGIN_HISTORY_DATA = [
@@ -39,7 +37,7 @@ const INIT_AUDIT = [
   { id: 1, time: '2026-06-05 14:31', by: '시스템',     type: 'LOCK',   target: '정경비',  detail: '로그인 실패 3회 초과 — 계정 자동 잠금 + 이메일 발송' },
   { id: 2, time: '2026-06-05 11:00', by: '시스템관리자', type: 'UPDATE', target: '박모니터', detail: '역할 변경: 관리자 → 뷰어' },
   { id: 3, time: '2026-06-05 09:05', by: '시스템관리자', type: 'CREATE', target: '이공장장', detail: '신규 계정 생성 (Enterprise · 관리자)' },
-  { id: 4, time: '2026-06-04 17:30', by: '김관리자',  type: 'UPDATE', target: '최보안',  detail: '접근 구역 변경: ZONE-C, ZONE-D 추가' },
+  { id: 4, time: '2026-06-04 17:30', by: '김관리자',  type: 'UPDATE', target: '최보안',  detail: '보안 레벨 변경: Lv.1 → Lv.2' },
   { id: 5, time: '2026-06-04 15:00', by: '시스템관리자', type: 'DELETE', target: '구계정001', detail: '만료 계정 삭제 (180일 미접속)' },
   { id: 6, time: '2026-06-03 10:20', by: '시스템관리자', type: 'UPDATE', target: '시스템', detail: '세션 타임아웃 60분 → 30분 변경' },
   { id: 7, time: '2026-06-02 09:00', by: '시스템관리자', type: 'CREATE', target: '박테스트', detail: '신규 계정 생성 (Basic · 운영자)' },
@@ -235,7 +233,7 @@ export default function Admin({ user, onLogout }) {
   const [roleFilter, setRoleFilter]         = useState('전체')
   const [companyFilter, setCompanyFilter]   = useState('전체')
   const [showAddUser, setShowAddUser]       = useState(false)
-  const [newUser, setNewUser]               = useState({ name: '', email: '', role: '뷰어', tier: 'Basic', zones: [], company: '개인' })
+  const [newUser, setNewUser]               = useState({ name: '', email: '', role: '뷰어', tier: 'Basic', max_security_level: 1, company: '개인' })
   const [editingRole, setEditingRole]       = useState(null)
   const [confirmDelete, setConfirmDelete]   = useState(null)
 
@@ -281,29 +279,6 @@ export default function Admin({ user, onLogout }) {
   const toggleGroup = (key) =>
     setOpenGroups(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
 
-  const triggerAutoLockWithEmail = (u) => {
-    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, locked: true, failedLogins: x.failedLogins } : x))
-    pushAudit('LOCK', u.name, `로그인 실패 ${u.failedLogins}회 초과 — 계정 자동 잠금`)
-    pushAudit('UPDATE', u.name, `잠금 안내 이메일 자동 발송 → ${u.email}`)
-    setEmailNotif({ name: u.name, email: u.email, auto: true })
-    setTimeout(() => setEmailNotif(null), 5000)
-  }
-
-  const simulateFailedLogin = (id) => {
-    setUsers(prev => {
-      const updated = prev.map(x => {
-        if (x.id !== id) return x
-        const newFailed = x.failedLogins + 1
-        return { ...x, failedLogins: newFailed }
-      })
-      const u = updated.find(x => x.id === id)
-      if (u && !u.locked && u.failedLogins >= security.maxFailedLogins) {
-        setTimeout(() => triggerAutoLockWithEmail(u), 0)
-      }
-      return updated
-    })
-  }
-
   const toggleLock = (id) => {
     const u = users.find(x => x.id === id)
     const willLock = !u?.locked
@@ -337,7 +312,7 @@ export default function Admin({ user, onLogout }) {
     const created = { ...newUser, id: Date.now(), status: 'offline', lastLogin: '—', joinDate: '2026-06-05', failedLogins: 0, locked: false }
     setUsers(prev => [...prev, created])
     pushAudit('CREATE', newUser.name, `신규 계정 생성 (${newUser.tier} · ${newUser.role} · ${newUser.company})`)
-    setNewUser({ name: '', email: '', role: '뷰어', tier: 'Basic', zones: [], company: '개인' })
+    setNewUser({ name: '', email: '', role: '뷰어', tier: 'Basic', max_security_level: 1, company: '개인' })
     setShowAddUser(false)
   }
 
@@ -597,7 +572,7 @@ export default function Admin({ user, onLogout }) {
                   <thead>
                     <tr>
                       <Th>#</Th><Th>이름</Th><Th>이메일</Th><Th>회사</Th><Th>역할</Th><Th>플랜</Th>
-                      <Th>상태</Th><Th>마지막 로그인</Th><Th>접근 구역</Th><Th>실패(시뮬)</Th><Th>잠금</Th><Th>관리</Th>
+                      <Th>상태</Th><Th>마지막 로그인</Th><Th>보안 레벨</Th><Th>잠금</Th><Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -643,27 +618,9 @@ export default function Admin({ user, onLogout }) {
                         </Td>
                         <Td style={{ fontFamily: 'Share Tech Mono', fontSize: 10, color: '#475569', whiteSpace: 'nowrap' }}>{u.lastLogin}</Td>
                         <Td>
-                          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                            {u.zones.map(z => (
-                              <span key={z} style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.15)', color: '#00d4ff' }}>{z}</span>
-                            ))}
-                          </div>
-                        </Td>
-                        <Td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontFamily: 'Share Tech Mono', fontSize: 11, color: u.failedLogins >= security.maxFailedLogins ? '#ef4444' : u.failedLogins > 0 ? '#f59e0b' : '#334155' }}>
-                              {u.failedLogins}/{security.maxFailedLogins}
-                            </span>
-                            {!u.locked && (
-                              <button
-                                style={{ ...S.iconBtn, width: 22, height: 22, borderColor: 'rgba(245,158,11,0.3)' }}
-                                onClick={() => simulateFailedLogin(u.id)}
-                                title="로그인 실패 시뮬레이션 (+1)"
-                              >
-                                <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>+</span>
-                              </button>
-                            )}
-                          </div>
+                          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: u.max_security_level === 3 ? 'rgba(239,68,68,0.1)' : u.max_security_level === 2 ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)', border: `1px solid ${u.max_security_level === 3 ? 'rgba(239,68,68,0.3)' : u.max_security_level === 2 ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)'}`, color: u.max_security_level === 3 ? '#ef4444' : u.max_security_level === 2 ? '#f59e0b' : '#10b981', fontWeight: 700 }}>
+                            Lv.{u.max_security_level}
+                          </span>
                         </Td>
                         <Td>
                           <button style={{ ...S.iconBtn, borderColor: u.locked ? 'rgba(239,68,68,0.3)' : '#1e2d3d' }} onClick={() => toggleLock(u.id)} title={u.locked ? '잠금 해제' : '계정 잠금'}>
@@ -686,7 +643,7 @@ export default function Admin({ user, onLogout }) {
                       </tr>
                     ))}
                     {filteredUsers.length === 0 && (
-                      <tr><td colSpan={12} style={{ padding: '24px', textAlign: 'center', color: '#334155', fontSize: 12 }}>검색 결과가 없습니다.</td></tr>
+                      <tr><td colSpan={11} style={{ padding: '24px', textAlign: 'center', color: '#334155', fontSize: 12 }}>검색 결과가 없습니다.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -724,13 +681,13 @@ export default function Admin({ user, onLogout }) {
                   ))}
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: '#475569', marginBottom: 8 }}>접근 구역</div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {ZONES.map(z => (
-                      <button key={z}
-                        style={{ fontSize: 10, padding: '4px 12px', borderRadius: 20, cursor: 'pointer', background: newUser.zones.includes(z) ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.03)', border: `1px solid ${newUser.zones.includes(z) ? 'rgba(0,212,255,0.4)' : '#1e2d3d'}`, color: newUser.zones.includes(z) ? '#00d4ff' : '#475569' }}
-                        onClick={() => setNewUser(p => ({ ...p, zones: p.zones.includes(z) ? p.zones.filter(x => x !== z) : [...p.zones, z] }))}>
-                        {z}
+                  <div style={{ fontSize: 11, color: '#475569', marginBottom: 8 }}>보안 레벨</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[{ level: 1, label: 'Lv.1 일반', color: '#10b981' }, { level: 2, label: 'Lv.2 제한', color: '#f59e0b' }, { level: 3, label: 'Lv.3 고보안', color: '#ef4444' }].map(({ level, label, color }) => (
+                      <button key={level}
+                        style={{ flex: 1, padding: '6px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: newUser.max_security_level === level ? 700 : 400, background: newUser.max_security_level === level ? `${color}15` : 'rgba(255,255,255,0.03)', border: `1px solid ${newUser.max_security_level === level ? color : '#1e2d3d'}`, color: newUser.max_security_level === level ? color : '#475569' }}
+                        onClick={() => setNewUser(p => ({ ...p, max_security_level: level }))}>
+                        {label}
                       </button>
                     ))}
                   </div>
@@ -800,30 +757,31 @@ export default function Admin({ user, onLogout }) {
                 <div style={{ fontSize: 11, color: '#1e3a5f', textAlign: 'right' }}>※ 클릭하여 토글 후 [적용] 버튼을 눌러야 DB에 반영됩니다.</div>
               </Card>
 
-              <Card title="사용자별 접근 구역" icon={MapPin} iconColor="#10b981">
+              <Card title="사용자별 보안 레벨" icon={Shield} iconColor="#10b981">
                 <div style={{ overflowX: 'auto' }}>
                   <table style={S.table}>
                     <thead>
                       <tr>
-                        <Th>사용자</Th><Th>역할</Th>
-                        {ZONES.map(z => <Th key={z}>{z}</Th>)}
+                        <Th>사용자</Th><Th>역할</Th><Th>보안 레벨</Th><Th>접근 범위</Th>
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map(u => (
-                        <tr key={u.id}>
-                          <Td style={{ color: '#e2e8f0', fontWeight: 500 }}>{u.name}</Td>
-                          <Td><RoleBadge role={u.role} /></Td>
-                          {ZONES.map(z => (
-                            <Td key={z}>
-                              {u.zones.includes(z)
-                                ? <CheckCircle size={14} color="#10b981" />
-                                : <div style={{ width: 14, height: 14, borderRadius: 3, border: '1px solid #1e2d3d', background: '#060e1a' }} />
-                              }
+                      {users.map(u => {
+                        const lv = u.max_security_level
+                        const color = lv === 3 ? '#ef4444' : lv === 2 ? '#f59e0b' : '#10b981'
+                        return (
+                          <tr key={u.id}>
+                            <Td style={{ color: '#e2e8f0', fontWeight: 500 }}>{u.name}</Td>
+                            <Td><RoleBadge role={u.role} /></Td>
+                            <Td>
+                              <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 20, background: `${color}15`, border: `1px solid ${color}40`, color, fontWeight: 700 }}>Lv.{lv}</span>
                             </Td>
-                          ))}
-                        </tr>
-                      ))}
+                            <Td style={{ fontSize: 11, color: '#64748b' }}>
+                              {lv === 3 ? '전체 카메라' : lv === 2 ? 'Lv.1~2 카메라' : 'Lv.1 카메라만'}
+                            </Td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

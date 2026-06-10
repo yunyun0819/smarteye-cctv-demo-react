@@ -6,11 +6,6 @@ import {
   VolumeX, Maximize2,
 } from 'lucide-react'
 
-const ZONES = ['ZONE-A', 'ZONE-B', 'ZONE-C', 'ZONE-D', 'ZONE-E']
-const ZONE_COLOR = {
-  'ZONE-A': '#00d4ff', 'ZONE-B': '#10b981',
-  'ZONE-C': '#f59e0b', 'ZONE-D': '#8b5cf6', 'ZONE-E': '#64748b',
-}
 
 const CAMERA_TYPES = [
   {
@@ -73,7 +68,7 @@ const gradients = [
   'linear-gradient(135deg, #1a1208 0%, #2a1e0d 50%, #150e05 100%)',
 ]
 
-function CameraPreview({ camName, zone }) {
+function CameraPreview({ camName, location }) {
   const now = new Date().toLocaleTimeString('ko-KR', { hour12: false }).slice(0, 5)
   return (
     <div style={{ marginTop: 4, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(16,185,129,0.3)', position: 'relative' }}>
@@ -101,7 +96,7 @@ function CameraPreview({ camName, zone }) {
         {/* 하단 바 */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '4px 8px', background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 9, color: '#64748b', fontFamily: 'monospace' }}>
-            {zone || 'ZONE-?'} · {now}
+            {location || '설치 위치'} · {now}
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
             <button style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 3, width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -123,13 +118,14 @@ function CameraPreview({ camName, zone }) {
 
 export default function CameraRegisterModal({ onClose, onSave, user }) {
   const [step, setStep]           = useState(1)
-  const [form, setForm]           = useState({ name: '', ip: '', zone: '' })
+  const [form, setForm]           = useState({ name: '', ip: '', location: '', security_level: 1 })
   const [connStatus, setConnStatus] = useState(null) // null | 'testing' | 'ok' | 'fail'
   const [pingMs, setPingMs]       = useState(null)
   const [cameraType, setCameraType] = useState(null)
   const [aiOptions, setAiOptions] = useState({})
 
   const isProPlus = user?.tier === 'Pro' || user?.tier === 'Enterprise'
+  const isCompany = !!user?.isCompany
 
   const handleTest = () => {
     if (!form.ip.trim()) return
@@ -151,13 +147,14 @@ export default function CameraRegisterModal({ onClose, onSave, user }) {
   const toggleOption = (optId) =>
     setAiOptions(prev => ({ ...prev, [optId]: !prev[optId] }))
 
-  const canGoNext = form.name.trim() && form.ip.trim() && form.zone.trim() && connStatus === 'ok'
+  const canGoNext = form.name.trim() && form.ip.trim() && connStatus === 'ok'
 
   const handleSave = () => {
     onSave({
-      name:       form.name.trim(),
-      ip:         form.ip.trim(),
-      zone:       form.zone.trim(),
+      name:           form.name.trim(),
+      ip:             form.ip.trim(),
+      location:       form.location.trim(),
+      security_level: isCompany ? form.security_level : null,
       cameraType,
       aiModel:    selectedType
         ? Object.keys(aiOptions).filter(k => aiOptions[k]).map(k => selectedType.options.find(o => o.id === k)?.label).join(' · ') || selectedType.label
@@ -269,47 +266,54 @@ export default function CameraRegisterModal({ onClose, onSave, user }) {
               />
             </div>
 
-            {/* 설치 구역 — Pro+ 는 드롭다운, Basic은 텍스트 */}
+            {/* 설치 위치 */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-                <span style={{ fontSize: 11, color: '#64748b' }}>설치 구역</span>
-                {isProPlus && (
-                  <span style={{ fontSize: 9, color: '#00d4ff', background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', borderRadius: 10, padding: '1px 6px' }}>
-                    Zone 선택
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 5 }}>설치 위치</div>
+              <input
+                value={form.location}
+                onChange={e => setForm(p => ({ ...p, location: e.target.value }))}
+                placeholder="예: 1층 정문, B1 주차장 입구"
+                style={inputStyle}
+              />
+            </div>
+
+            {/* 보안 레벨 — 기업 계정만 표시 */}
+            {isCompany && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>보안 레벨</span>
+                  <span style={{ fontSize: 9, color: '#8b5cf6', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 10, padding: '1px 6px' }}>
+                    관리자=3 · 운영자=2 · 뷰어=1
                   </span>
-                )}
-              </div>
-              {isProPlus ? (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {ZONES.map(z => {
-                    const zc = ZONE_COLOR[z]
-                    const active = form.zone === z
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[
+                    { level: 1, label: 'Lv.1', desc: '일반',   color: '#10b981' },
+                    { level: 2, label: 'Lv.2', desc: '제한',   color: '#f59e0b' },
+                    { level: 3, label: 'Lv.3', desc: '고보안', color: '#ef4444' },
+                  ].map(({ level, label, desc, color }) => {
+                    const active = form.security_level === level
                     return (
                       <button
-                        key={z}
-                        onClick={() => setForm(p => ({ ...p, zone: z }))}
+                        key={level}
+                        onClick={() => setForm(p => ({ ...p, security_level: level }))}
                         style={{
-                          padding: '6px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                          background: active ? `${zc}18` : 'rgba(255,255,255,0.03)',
-                          border: `1px solid ${active ? zc : '#1e2d3d'}`,
-                          color: active ? zc : '#475569',
+                          flex: 1, padding: '8px 4px', borderRadius: 8, cursor: 'pointer',
+                          background: active ? `${color}15` : '#0a1628',
+                          border: `1px solid ${active ? color : '#1e2d3d'}`,
+                          color: active ? color : '#475569',
+                          fontSize: 11, fontWeight: active ? 700 : 400,
                           transition: 'all 0.15s',
                         }}
                       >
-                        {z}
+                        <div>{label}</div>
+                        <div style={{ fontSize: 9, marginTop: 2 }}>{desc}</div>
                       </button>
                     )
                   })}
                 </div>
-              ) : (
-                <input
-                  value={form.zone}
-                  onChange={e => setForm(p => ({ ...p, zone: e.target.value }))}
-                  placeholder="예: ZONE-A, 지하 주차장"
-                  style={inputStyle}
-                />
-              )}
-            </div>
+              </div>
+            )}
 
             {/* 연결 테스트 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -350,7 +354,7 @@ export default function CameraRegisterModal({ onClose, onSave, user }) {
 
             {/* 연결 성공 시 카메라 미리보기 */}
             {connStatus === 'ok' && (
-              <CameraPreview camName={form.name} zone={form.zone} />
+              <CameraPreview camName={form.name} location={form.location} />
             )}
 
             {connStatus !== 'ok' && form.ip.trim() && (

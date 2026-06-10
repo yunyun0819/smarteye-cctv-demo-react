@@ -3,7 +3,7 @@ import {
   Camera, Users, Car, AlertTriangle, VolumeX, Volume2,
   Maximize2, RotateCcw, ZoomIn, ZoomOut, Move,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Wifi, WifiOff, Settings, RefreshCw, Plus, MapPin, Lock,
+  Wifi, WifiOff, Settings, RefreshCw, Plus,
 } from 'lucide-react'
 import { cameraApi } from '../api'
 import CameraRegisterModal from '../components/CameraRegisterModal'
@@ -31,11 +31,6 @@ const GRID_LAYOUTS = [
 const statusColor = { online: '#10b981', offline: '#ef4444', maintenance: '#f59e0b' }
 const statusLabel = { online: '온라인', offline: '오프라인', maintenance: '점검 중' }
 
-const ZONE_COLOR = {
-  'ZONE-A': '#00d4ff', 'ZONE-B': '#10b981',
-  'ZONE-C': '#f59e0b', 'ZONE-D': '#8b5cf6', 'ZONE-E': '#64748b',
-}
-const ALL_ZONES = ['ZONE-A', 'ZONE-B', 'ZONE-C', 'ZONE-D', 'ZONE-E']
 
 function CameraFeed({ cam, index, selected, onClick }) {
   const now = new Date().toLocaleTimeString('ko-KR', { hour12: false }).slice(0, 5)
@@ -90,7 +85,7 @@ function CameraFeed({ cam, index, selected, onClick }) {
         )}
         <div className="cam-bar">
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span className="cam-time">{cam.zone} · {now}</span>
+            <span className="cam-time">{cam.location || cam.ip} · {now}</span>
           </div>
           <div className="cam-controls">
             <button className="cam-btn"><VolumeX size={10} /></button>
@@ -109,19 +104,16 @@ export default function Monitoring({ user }) {
   const [selectedCam, setSelectedCam] = useState(null)
   const [muted, setMuted] = useState(true)
   const [listFilter, setListFilter] = useState('all')
-  const [zoneFilter, setZoneFilter] = useState('전체')
   const [showRegisterModal, setShowRegisterModal] = useState(false)
 
-  // 사용자 접근 가능 존
-  const userZones = user?.zones || ALL_ZONES
-  const accessibleZones = ALL_ZONES.filter(z => userZones.includes(z))
-  const lockedZones = ALL_ZONES.filter(z => !userZones.includes(z))
+  // 개인/관리자는 전체(99), 기업 사원은 max_security_level 기준으로 접근 제한
+  const maxLevel = user?.max_security_level ?? 99
 
   useEffect(() => {
     cameraApi.getAll().then(data => {
       const accessible = data
-        .filter(c => userZones.includes(c.zone))
-        .sort((a, b) => a.zone.localeCompare(b.zone))
+        .filter(c => !c.security_level || c.security_level <= maxLevel)
+        .sort((a, b) => a.name.localeCompare(b.name))
       setCameras(accessible)
       setSelectedCam(accessible[0])
     })
@@ -131,17 +123,12 @@ export default function Monitoring({ user }) {
 
   const handleCameraRegister = (data) => {
     cameraApi.add(data).then(newCam => {
-      setCameras(prev => [...prev, newCam].sort((a, b) => a.zone.localeCompare(b.zone)))
+      setCameras(prev => [...prev, newCam].sort((a, b) => a.name.localeCompare(b.name)))
       setSelectedCam(newCam)
     })
   }
 
-  // 상태 + 존 필터 모두 적용
-  const filteredList = cameras.filter(c => {
-    const matchStatus = listFilter === 'all' || c.status === listFilter
-    const matchZone   = zoneFilter === '전체' || c.zone === zoneFilter
-    return matchStatus && matchZone
-  })
+  const filteredList = cameras.filter(c => listFilter === 'all' || c.status === listFilter)
 
   const displayCams = filteredList.slice(0, layout.count)
   const emptySlots  = Math.max(0, layout.count - displayCams.length)
@@ -175,41 +162,7 @@ export default function Monitoring({ user }) {
           </div>
         </div>
 
-        {/* 존 필터 */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
-            <MapPin size={10} color="#475569" />
-            <span style={{ fontSize: 10, color: '#475569' }}>구역</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            <button
-              onClick={() => setZoneFilter('전체')}
-              style={{ padding: '3px 8px', borderRadius: 12, cursor: 'pointer', fontSize: 10, background: zoneFilter === '전체' ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)', border: `1px solid ${zoneFilter === '전체' ? 'rgba(0,212,255,0.4)' : '#1e2d3d'}`, color: zoneFilter === '전체' ? '#00d4ff' : '#475569' }}
-            >
-              전체
-            </button>
-            {accessibleZones.map(z => {
-              const zc = ZONE_COLOR[z] || '#64748b'
-              const active = zoneFilter === z
-              return (
-                <button
-                  key={z}
-                  onClick={() => setZoneFilter(z)}
-                  style={{ padding: '3px 8px', borderRadius: 12, cursor: 'pointer', fontSize: 10, background: active ? `${zc}18` : 'rgba(255,255,255,0.03)', border: `1px solid ${active ? zc : '#1e2d3d'}`, color: active ? zc : '#475569' }}
-                >
-                  {z}
-                </button>
-              )
-            })}
-            {lockedZones.map(z => (
-              <span key={z} style={{ padding: '3px 8px', borderRadius: 12, fontSize: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid #1e2d3d', color: '#1e3a5f', display: 'flex', alignItems: 'center', gap: 3, cursor: 'not-allowed' }}>
-                <Lock size={8} color="#1e3a5f" /> {z}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="mon-filter-tabs">
+<div className="mon-filter-tabs">
           {[['all','전체'],['online','온라인'],['offline','오프라인']].map(([val, lbl]) => (
             <button key={val} className={`mon-filter-btn ${listFilter === val ? 'active' : ''}`}
               onClick={() => setListFilter(val)}>{lbl}</button>
@@ -227,7 +180,7 @@ export default function Monitoring({ user }) {
               <div className="mon-cam-info">
                 <span className="mon-cam-name">{cam.name}</span>
                 <span className="mon-cam-meta">
-                  <span style={{ color: ZONE_COLOR[cam.zone] || '#64748b', fontWeight: 600 }}>{cam.zone}</span>
+                  <span style={{ color: '#64748b' }}>{cam.location || '—'}</span>
                   {' · '}{cam.fps > 0 ? `${cam.fps}fps` : '—'}
                 </span>
               </div>
@@ -252,8 +205,8 @@ export default function Monitoring({ user }) {
             <div className="mon-detail-row"><span>해상도</span><span>{selectedCam.resolution}</span></div>
             <div className="mon-detail-row"><span>FPS</span><span>{selectedCam.fps > 0 ? `${selectedCam.fps}fps` : '—'}</span></div>
             <div className="mon-detail-row">
-              <span>구역</span>
-              <span style={{ color: ZONE_COLOR[selectedCam.zone] || '#64748b', fontWeight: 600 }}>{selectedCam.zone}</span>
+              <span>위치</span>
+              <span style={{ color: '#64748b' }}>{selectedCam.location || '—'}</span>
             </div>
             <div className="mon-detail-row"><span>상태</span>
               <span style={{ color: statusColor[selectedCam.status] }}>{statusLabel[selectedCam.status]}</span>
@@ -269,11 +222,6 @@ export default function Monitoring({ user }) {
           <div className="section-title">
             <Camera size={14} color="#00d4ff" />
             <span>실시간 모니터링</span>
-            {zoneFilter !== '전체' && (
-              <span style={{ fontSize: 10, color: ZONE_COLOR[zoneFilter] || '#64748b', background: `${ZONE_COLOR[zoneFilter] || '#64748b'}15`, border: `1px solid ${ZONE_COLOR[zoneFilter] || '#64748b'}30`, borderRadius: 20, padding: '1px 8px' }}>
-                {zoneFilter}
-              </span>
-            )}
             <div className="live-indicator" style={{ marginLeft: 4 }}>
               <span className="live-dot sm" /> LIVE
             </div>
@@ -371,8 +319,7 @@ export default function Monitoring({ user }) {
               <>
                 <div style={{ fontSize: 11, color: '#00d4ff', fontWeight: 600 }}>{selectedCam.name}</div>
                 <div style={{ fontSize: 10, color: '#475569' }}>
-                  <span style={{ color: ZONE_COLOR[selectedCam.zone] || '#64748b', fontWeight: 600 }}>{selectedCam.zone}</span>
-                  {' · '}{selectedCam.ip}
+                  {selectedCam.location || '—'}{' · '}{selectedCam.ip}
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                   {selectedCam.persons > 0 && (

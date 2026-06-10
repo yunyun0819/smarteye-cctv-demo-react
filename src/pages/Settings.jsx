@@ -7,11 +7,6 @@ import {
 import { cameraApi, userApi } from '../api'
 import CameraRegisterModal from '../components/CameraRegisterModal'
 
-const ZONES = ['ZONE-A', 'ZONE-B', 'ZONE-C', 'ZONE-D', 'ZONE-E']
-const ZONE_COLOR = {
-  'ZONE-A': '#00d4ff', 'ZONE-B': '#10b981',
-  'ZONE-C': '#f59e0b', 'ZONE-D': '#8b5cf6', 'ZONE-E': '#64748b',
-}
 
 const CAMERA_TYPES = [
   {
@@ -105,11 +100,12 @@ function CameraEditModal({ camera, onClose, onSave, user }) {
   }
 
   const [form, setForm] = useState({
-    name:       camera.name,
-    ip:         camera.ip,
-    zone:       camera.zone,
-    resolution: camera.resolution,
-    fps:        camera.fps,
+    name:           camera.name,
+    ip:             camera.ip,
+    location:       camera.location,
+    resolution:     camera.resolution,
+    fps:            camera.fps,
+    security_level: camera.security_level || 1,
   })
   const [selectedType, setSelectedType] = useState(camera.cameraType || null)
   const [aiOptions, setAiOptions]       = useState(() => initAiOptions(camera.cameraType))
@@ -167,27 +163,42 @@ function CameraEditModal({ camera, onClose, onSave, user }) {
             </div>
           ))}
 
-          {/* 구역 */}
+          {/* 설치 위치 */}
           <div>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>설치 구역</div>
-            {isProPlus ? (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {ZONES.map(z => {
-                  const zc = ZONE_COLOR[z]
-                  const active = form.zone === z
-                  return (
-                    <button key={z} onClick={() => setForm(p => ({ ...p, zone: z }))}
-                      style={{ padding: '5px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: 600, background: active ? `${zc}18` : 'rgba(255,255,255,0.03)', border: `1px solid ${active ? zc : '#1e2d3d'}`, color: active ? zc : '#475569', transition: 'all 0.15s' }}>
-                      {z}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <input style={inputStyle} value={form.zone} placeholder="ZONE-A"
-                onChange={e => setForm(p => ({ ...p, zone: e.target.value }))} />
-            )}
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>설치 위치</div>
+            <input style={inputStyle} value={form.location || ''} placeholder="예: 1층 정문, B1 주차장 입구"
+              onChange={e => setForm(p => ({ ...p, location: e.target.value }))} />
           </div>
+
+          {/* 보안 레벨 */}
+          {user?.isCompany && (
+            <div>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>보안 레벨</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[
+                  { level: 1, label: 'Lv.1 일반',   color: '#10b981' },
+                  { level: 2, label: 'Lv.2 제한',   color: '#f59e0b' },
+                  { level: 3, label: 'Lv.3 고보안', color: '#ef4444' },
+                ].map(({ level, label, color }) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, security_level: level }))}
+                    style={{
+                      flex: 1, padding: '7px 4px', borderRadius: 8, cursor: 'pointer',
+                      fontSize: 11, fontWeight: form.security_level === level ? 700 : 400,
+                      background: form.security_level === level ? `${color}15` : '#0a1628',
+                      border: `1px solid ${form.security_level === level ? color : '#1e2d3d'}`,
+                      color: form.security_level === level ? color : '#475569',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 해상도 + FPS */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -397,7 +408,7 @@ export default function Settings({ user }) {
                 <table className="vehicle-table">
                   <thead>
                     <tr>
-                      <th>카메라명</th><th>IP</th><th>구역</th><th>해상도</th><th>FPS</th>
+                      <th>카메라명</th><th>IP</th><th>위치</th><th>해상도</th><th>FPS</th>
                       <th>AI 모델</th><th>활성화</th><th>수정</th>
                     </tr>
                   </thead>
@@ -406,11 +417,7 @@ export default function Settings({ user }) {
                       <tr key={cam.id}>
                         <td style={{ color: '#e2e8f0', fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap' }}>{cam.name}</td>
                         <td className="mono" style={{ fontSize: 11 }}>{cam.ip}</td>
-                        <td>
-                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 12, background: `${ZONE_COLOR[cam.zone] || '#64748b'}15`, border: `1px solid ${ZONE_COLOR[cam.zone] || '#64748b'}30`, color: ZONE_COLOR[cam.zone] || '#64748b', fontWeight: 600 }}>
-                            {cam.zone}
-                          </span>
-                        </td>
+                        <td style={{ color: '#64748b', fontSize: 11 }}>{cam.location || '—'}</td>
                         <td style={{ color: '#94a3b8', fontSize: 11 }}>{cam.resolution}</td>
                         <td style={{ fontFamily: 'Share Tech Mono', fontSize: 11, color: cam.fps > 0 ? '#94a3b8' : '#334155' }}>
                           {cam.fps > 0 ? `${cam.fps}fps` : '—'}
