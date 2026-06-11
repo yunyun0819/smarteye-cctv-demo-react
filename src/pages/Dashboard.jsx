@@ -8,6 +8,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { cameraApi, eventApi, vehicleApi, analysisApi } from '../api'
+import useMonitorStore from '../store/useMonitorStore'
 
 const gradients = [
   'linear-gradient(135deg, #0a1628 0%, #0d2040 50%, #091520 100%)',
@@ -19,9 +20,16 @@ const gradients = [
 ]
 
 
-function CameraFeed({ cam, index }) {
+function CameraFeed({ cam, index, size = 1 }) {
   return (
-    <div className="cam-card" style={{ animationDelay: `${index * 0.08}s` }}>
+    <div
+      className="cam-card"
+      style={{
+        animationDelay: `${index * 0.08}s`,
+        gridColumn: size >= 2 ? 'span 2' : undefined,
+        gridRow: size === 4 ? 'span 2' : undefined,
+      }}
+    >
       <div className="cam-feed" style={{ background: gradients[index % gradients.length] }}>
         <div className="scanline" />
         <div className="cam-grid" />
@@ -106,6 +114,8 @@ export default function Dashboard({ user }) {
   const [newEvents, setNewEvents] = useState([])
   const [layoutIdx, setLayoutIdx] = useState(0)
 
+  const { monitorOrder, monitorSizes } = useMonitorStore()
+
   // 개인/관리자는 전체(99), 기업 사원은 max_security_level 기준으로 접근 제한
   const maxLevel = user?.max_security_level ?? 99
 
@@ -134,9 +144,19 @@ export default function Dashboard({ user }) {
     .filter(c => !c.security_level || c.security_level <= maxLevel)
     .sort((a, b) => a.name.localeCompare(b.name))
 
+  const camMap = Object.fromEntries(accessibleCameras.map(c => [c.id, c]))
+
+  // 모니터링 편성 순서가 있으면 그 순서 사용, 없으면 기본 정렬
+  const orderedCameras = monitorOrder.length > 0
+    ? monitorOrder.map(id => camMap[id]).filter(Boolean)
+    : accessibleCameras
+
   const layout = LAYOUTS[layoutIdx]
-  const displayCameras = accessibleCameras.slice(0, layout.count)
-  const rowCount = Math.ceil(displayCameras.length / layout.cols)
+  const displayCameras = orderedCameras.slice(0, layout.count)
+
+  // 크기 스팬을 고려한 행 수 계산
+  const totalColSpans = displayCameras.reduce((s, c) => s + ((monitorSizes[c.id] || 1) >= 2 ? 2 : 1), 0)
+  const rowCount = Math.max(Math.ceil(totalColSpans / layout.cols), 1)
   const onlineCnt = accessibleCameras.filter(c => c.status === 'online').length
   const totalPersons = accessibleCameras.reduce((s, c) => s + (c.persons || 0), 0)
   const alertVehicles = vehicles.filter(v => v.isBlacklist).length
@@ -173,8 +193,8 @@ export default function Dashboard({ user }) {
               ))}
             </div>
           </div>
-          <div className="cam-grid-layout" style={{ gridTemplateColumns: `repeat(${layout.cols}, 1fr)`, gridTemplateRows: `repeat(${rowCount}, 1fr)` }}>
-            {displayCameras.map((cam, i) => <CameraFeed key={cam.id} cam={cam} index={i} />)}
+          <div className="cam-grid-layout" style={{ gridTemplateColumns: `repeat(${layout.cols}, 1fr)`, gridTemplateRows: `repeat(${rowCount}, 1fr)`, gridAutoRows: '1fr' }}>
+            {displayCameras.map((cam, i) => <CameraFeed key={cam.id} cam={cam} index={i} size={monitorSizes[cam.id] || 1} />)}
           </div>
         </section>
 

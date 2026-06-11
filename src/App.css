@@ -868,6 +868,133 @@
 .ptz-btn.active-btn { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: var(--emerald); }
 
 /* ══════════════════════════════════════════
+   모니터링 — 편성 목록 (신규)
+   ══════════════════════════════════════════ */
+.mon-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mon-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
+  flex-shrink: 0;
+}
+
+.mon-empty-hint {
+  padding: 10px 8px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 1.6;
+  background: rgba(0,0,0,0.15);
+  border: 1px dashed rgba(0,212,255,0.08);
+  border-radius: 7px;
+}
+
+.mon-lineup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.mon-lineup-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: default;
+  transition: background 0.15s, border-color 0.15s;
+  background: rgba(0,212,255,0.03);
+  user-select: none;
+}
+.mon-lineup-item:hover {
+  background: rgba(0,212,255,0.07);
+  border-color: rgba(0,212,255,0.15);
+}
+.mon-lineup-item.drag-over {
+  border-color: rgba(0,212,255,0.5);
+  background: rgba(0,212,255,0.12);
+}
+.mon-lineup-item.dragging {
+  opacity: 0.35;
+}
+
+.mon-order-num {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--cyan);
+  width: 12px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.mon-lineup-name {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.mon-size-cycle {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 3px;
+  padding: 1px 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.mon-size-cycle:hover {
+  color: var(--cyan);
+  border-color: rgba(0,212,255,0.3);
+  background: rgba(0,212,255,0.08);
+}
+
+.mon-remove-btn {
+  width: 17px; height: 17px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(239,68,68,0.06);
+  border: 1px solid rgba(239,68,68,0.12);
+  border-radius: 4px;
+  color: #ef4444;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.mon-lineup-item:hover .mon-remove-btn { opacity: 1; }
+.mon-remove-btn:hover { background: rgba(239,68,68,0.18); }
+
+.mon-add-cam-btn {
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(16,185,129,0.06);
+  border: 1px solid rgba(16,185,129,0.12);
+  border-radius: 4px;
+  color: var(--emerald);
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.mon-cam-item:hover .mon-add-cam-btn { opacity: 1; }
+.mon-add-cam-btn:hover { background: rgba(16,185,129,0.18); }
+
+/* ══════════════════════════════════════════
    AI 분석 페이지
    ══════════════════════════════════════════ */
 .ai-detection-row {

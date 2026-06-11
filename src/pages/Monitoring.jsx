@@ -3,10 +3,11 @@ import {
   Camera, Users, Car, AlertTriangle, VolumeX, Volume2,
   Maximize2, RotateCcw, ZoomIn, ZoomOut, Move,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Wifi, WifiOff, Settings, RefreshCw, Plus,
+  WifiOff, Settings, RefreshCw, Plus, GripVertical, Minus,
 } from 'lucide-react'
 import { cameraApi } from '../api'
 import CameraRegisterModal from '../components/CameraRegisterModal'
+import useMonitorStore from '../store/useMonitorStore'
 
 const gradients = [
   'linear-gradient(135deg, #0a1628 0%, #0d2040 50%, #091520 100%)',
@@ -21,23 +22,29 @@ const gradients = [
 ]
 
 const GRID_LAYOUTS = [
-  { label: '1×1', cols: 1, count: 1  },
-  { label: '2×2', cols: 2, count: 4  },
-  { label: '2×3', cols: 3, count: 6  },
-  { label: '3×3', cols: 3, count: 9  },
-  { label: '4×4', cols: 4, count: 16 },
+  { label: '1열', cols: 1, count: 1  },
+  { label: '2열', cols: 2, count: 4  },
+  { label: '3열', cols: 3, count: 9  },
+  { label: '4열', cols: 4, count: 16 },
 ]
 
-const statusColor = { online: '#10b981', offline: '#ef4444', maintenance: '#f59e0b' }
-const statusLabel = { online: '온라인', offline: '오프라인', maintenance: '점검 중' }
+const STATUS_COLOR = { online: '#10b981', offline: '#ef4444', maintenance: '#f59e0b' }
+const STATUS_LABEL = { online: '온라인', offline: '오프라인', maintenance: '점검 중' }
 
+// 1=1×1, 2=2×1(와이드), 4=2×2(대형)
+const SIZE_CYCLE = { 1: 2, 2: 4, 4: 1 }
+const SIZE_LABEL = { 1: '1×1', 2: '2×1', 4: '2×2' }
 
-function CameraFeed({ cam, index, selected, onClick }) {
+function CameraFeed({ cam, index, selected, size = 1, onSizeToggle, onClick }) {
   const now = new Date().toLocaleTimeString('ko-KR', { hour12: false }).slice(0, 5)
   return (
     <div
       className={`mon-cam-card ${selected ? 'selected' : ''}`}
-      style={{ animationDelay: `${index * 0.06}s` }}
+      style={{
+        animationDelay: `${index * 0.06}s`,
+        gridColumn: size >= 2 ? 'span 2' : undefined,
+        gridRow: size === 4 ? 'span 2' : undefined,
+      }}
       onClick={onClick}
     >
       <div className="cam-feed" style={{ background: gradients[index % gradients.length] }}>
@@ -59,8 +66,8 @@ function CameraFeed({ cam, index, selected, onClick }) {
           <span className="cam-name">{cam.name}</span>
           {cam.status === 'online'
             ? <span className="live-badge"><span className="live-dot" /> LIVE</span>
-            : <span className="live-badge" style={{ color: statusColor[cam.status], background: `${statusColor[cam.status]}15`, borderColor: `${statusColor[cam.status]}30` }}>
-                {statusLabel[cam.status]}
+            : <span className="live-badge" style={{ color: STATUS_COLOR[cam.status], background: `${STATUS_COLOR[cam.status]}15`, borderColor: `${STATUS_COLOR[cam.status]}30` }}>
+                {STATUS_LABEL[cam.status]}
               </span>
           }
         </div>
@@ -84,10 +91,16 @@ function CameraFeed({ cam, index, selected, onClick }) {
           </div>
         )}
         <div className="cam-bar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span className="cam-time">{cam.location || cam.ip} · {now}</span>
-          </div>
+          <span className="cam-time">{cam.location || cam.ip} · {now}</span>
           <div className="cam-controls">
+            <button
+              className="cam-btn"
+              title={`화면 크기: ${SIZE_LABEL[size]} → ${SIZE_LABEL[SIZE_CYCLE[size]]}`}
+              onClick={e => { e.stopPropagation(); onSizeToggle() }}
+              style={{ minWidth: 26, fontSize: 7, fontFamily: 'var(--font-mono)', color: '#64748b', letterSpacing: 0 }}
+            >
+              {SIZE_LABEL[size]}
+            </button>
             <button className="cam-btn"><VolumeX size={10} /></button>
             <button className="cam-btn"><Maximize2 size={10} /></button>
           </div>
@@ -105,33 +118,69 @@ export default function Monitoring({ user }) {
   const [muted, setMuted] = useState(true)
   const [listFilter, setListFilter] = useState('all')
   const [showRegisterModal, setShowRegisterModal] = useState(false)
+  const [dragId, setDragId] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
 
-  // 개인/관리자는 전체(99), 기업 사원은 max_security_level 기준으로 접근 제한
+  const { monitorOrder, monitorSizes, setMonitorOrder, toggleCamera, setCameraSize, resetConfig } = useMonitorStore()
+
   const maxLevel = user?.max_security_level ?? 99
 
   useEffect(() => {
     cameraApi.getAll().then(data => {
-      const accessible = data
-        .filter(c => !c.security_level || c.security_level <= maxLevel)
-        .sort((a, b) => a.name.localeCompare(b.name))
+      const accessible = data.filter(c => !c.security_level || c.security_level <= maxLevel)
       setCameras(accessible)
-      setSelectedCam(accessible[0])
+      if (!selectedCam) setSelectedCam(accessible[0])
     })
   }, [])
 
   const layout = GRID_LAYOUTS[selectedLayout]
+  const camMap = Object.fromEntries(cameras.map(c => [c.id, c]))
+
+  // 편성 목록: monitorOrder 순서대로 카메라 객체 조회
+  const scheduledCams = monitorOrder.map(id => camMap[id]).filter(Boolean)
+
+  // 카메라 목록: 편성되지 않은 카메라, 필터 적용
+  const unscheduledCams = cameras.filter(c =>
+    (listFilter === 'all' || c.status === listFilter) && !monitorOrder.includes(c.id)
+  )
+
+  // 그리드 표시 대상: 편성 목록이 있으면 편성 순서, 없으면 전체 슬라이스
+  const displayCams = scheduledCams.length > 0
+    ? scheduledCams
+    : cameras.slice(0, layout.count)
+
+  // 그리드 행 수 계산 (크기 스팬 고려)
+  const totalColSpans = displayCams.reduce((s, c) => s + ((monitorSizes[c.id] || 1) >= 2 ? 2 : 1), 0)
+  const rowCount = Math.max(Math.ceil(totalColSpans / layout.cols), 1)
 
   const handleCameraRegister = (data) => {
     cameraApi.add(data).then(newCam => {
-      setCameras(prev => [...prev, newCam].sort((a, b) => a.name.localeCompare(b.name)))
-      setSelectedCam(newCam)
+      setCameras(prev => [...prev, newCam])
     })
   }
 
-  const filteredList = cameras.filter(c => listFilter === 'all' || c.status === listFilter)
-
-  const displayCams = filteredList.slice(0, layout.count)
-  const emptySlots  = Math.max(0, layout.count - displayCams.length)
+  // 드래그 앤 드롭 — 편성 목록 순서 변경
+  const onDragStart = (e, id) => {
+    setDragId(id)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  const onDragOver = (e, id) => {
+    e.preventDefault()
+    if (id !== dragId) setDragOverId(id)
+  }
+  const onDrop = (e, id) => {
+    e.preventDefault()
+    if (dragId == null || dragId === id) { setDragId(null); setDragOverId(null); return }
+    const order = [...monitorOrder]
+    const from = order.indexOf(dragId)
+    const to = order.indexOf(id)
+    order.splice(from, 1)
+    order.splice(to, 0, dragId)
+    setMonitorOrder(order)
+    setDragId(null)
+    setDragOverId(null)
+  }
+  const onDragEnd = () => { setDragId(null); setDragOverId(null) }
 
   return (
     <div className="content" style={{ flexDirection: 'row', gap: 14, padding: '16px 18px', overflow: 'hidden' }}>
@@ -143,15 +192,80 @@ export default function Monitoring({ user }) {
         />
       )}
 
-      {/* 카메라 목록 사이드 */}
-      <aside className="mon-sidebar">
-        <div className="section-header" style={{ marginBottom: 10 }}>
-          <div className="section-title">
-            <Camera size={14} color="#00d4ff" />
-            <span>카메라 목록</span>
+      {/* ── 사이드바 ── */}
+      <aside className="mon-sidebar" style={{ width: 230, minWidth: 230 }}>
+
+        {/* 편성 목록 */}
+        <div className="mon-section">
+          <div className="section-header">
+            <div className="section-title" style={{ fontSize: 11.5 }}>
+              <Camera size={12} color="#00d4ff" />
+              <span>편성 목록</span>
+              <span className="section-badge">{monitorOrder.length}</span>
+            </div>
+            {monitorOrder.length > 0 && (
+              <button className="text-btn" style={{ fontSize: 10 }} onClick={resetConfig}>초기화</button>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span className="section-badge">{cameras.filter(c => c.status === 'online').length}/{cameras.length}</span>
+
+          {monitorOrder.length === 0 ? (
+            <div className="mon-empty-hint">
+              아래 목록에서 + 버튼으로<br />카메라를 추가하세요
+            </div>
+          ) : (
+            <div className="mon-lineup-list">
+              {monitorOrder.map((id, idx) => {
+                const cam = camMap[id]
+                if (!cam) return null
+                const sz = monitorSizes[id] || 1
+                return (
+                  <div
+                    key={id}
+                    className={`mon-lineup-item ${dragOverId === id ? 'drag-over' : ''} ${dragId === id ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={e => onDragStart(e, id)}
+                    onDragOver={e => onDragOver(e, id)}
+                    onDrop={e => onDrop(e, id)}
+                    onDragEnd={onDragEnd}
+                    onClick={() => setSelectedCam(cam)}
+                  >
+                    <GripVertical size={11} color="#334155" style={{ flexShrink: 0, cursor: 'grab' }} />
+                    <span className="mon-order-num">{idx + 1}</span>
+                    <div className="mon-cam-dot" style={{ background: STATUS_COLOR[cam.status], flexShrink: 0 }} />
+                    <span className="mon-lineup-name">{cam.name}</span>
+                    <button
+                      className="mon-size-cycle"
+                      title="크기 변경"
+                      onClick={e => { e.stopPropagation(); setCameraSize(id, SIZE_CYCLE[sz]) }}
+                    >
+                      {SIZE_LABEL[sz]}
+                    </button>
+                    <button
+                      className="mon-remove-btn"
+                      title="편성에서 제거"
+                      onClick={e => { e.stopPropagation(); toggleCamera(id) }}
+                    >
+                      <Minus size={9} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="mon-divider" />
+
+        {/* 카메라 목록 */}
+        <div className="mon-section" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="section-header">
+            <div className="section-title" style={{ fontSize: 11.5 }}>
+              <Camera size={12} color="#64748b" />
+              <span>카메라 목록</span>
+              <span className="section-badge">
+                {cameras.filter(c => c.status === 'online').length}/{cameras.length}
+              </span>
+            </div>
             <button
               className="add-btn"
               style={{ padding: '3px 8px', fontSize: 10, gap: 4 }}
@@ -160,44 +274,48 @@ export default function Monitoring({ user }) {
               <Plus size={10} /> 추가
             </button>
           </div>
-        </div>
 
-<div className="mon-filter-tabs">
-          {[['all','전체'],['online','온라인'],['offline','오프라인']].map(([val, lbl]) => (
-            <button key={val} className={`mon-filter-btn ${listFilter === val ? 'active' : ''}`}
-              onClick={() => setListFilter(val)}>{lbl}</button>
-          ))}
-        </div>
+          <div className="mon-filter-tabs">
+            {[['all','전체'],['online','온라인'],['offline','오프라인']].map(([val, lbl]) => (
+              <button key={val} className={`mon-filter-btn ${listFilter === val ? 'active' : ''}`}
+                onClick={() => setListFilter(val)}>{lbl}</button>
+            ))}
+          </div>
 
-        <div className="mon-cam-list">
-          {filteredList.map(cam => (
-            <button
-              key={cam.id}
-              className={`mon-cam-item ${selectedCam?.id === cam.id ? 'active' : ''}`}
-              onClick={() => setSelectedCam(cam)}
-            >
-              <div className="mon-cam-dot" style={{ background: statusColor[cam.status] }} />
-              <div className="mon-cam-info">
-                <span className="mon-cam-name">{cam.name}</span>
-                <span className="mon-cam-meta">
-                  <span style={{ color: '#64748b' }}>{cam.location || '—'}</span>
-                  {' · '}{cam.fps > 0 ? `${cam.fps}fps` : '—'}
-                </span>
+          <div className="mon-cam-list">
+            {unscheduledCams.map(cam => (
+              <button
+                key={cam.id}
+                className={`mon-cam-item ${selectedCam?.id === cam.id ? 'active' : ''}`}
+                onClick={() => setSelectedCam(cam)}
+              >
+                <div className="mon-cam-dot" style={{ background: STATUS_COLOR[cam.status] }} />
+                <div className="mon-cam-info">
+                  <span className="mon-cam-name">{cam.name}</span>
+                  <span className="mon-cam-meta">
+                    <span style={{ color: '#64748b' }}>{cam.location || '—'}</span>
+                    {' · '}{cam.fps > 0 ? `${cam.fps}fps` : '—'}
+                  </span>
+                </div>
+                {cam.alert && <AlertTriangle size={11} color="#ef4444" style={{ flexShrink: 0 }} />}
+                <button
+                  className="mon-add-cam-btn"
+                  title="편성에 추가"
+                  onClick={e => { e.stopPropagation(); toggleCamera(cam.id) }}
+                >
+                  <Plus size={11} />
+                </button>
+              </button>
+            ))}
+            {unscheduledCams.length === 0 && cameras.length > 0 && (
+              <div style={{ padding: '12px 8px', textAlign: 'center', color: '#334155', fontSize: 11 }}>
+                {listFilter === 'all' ? '모든 카메라가 편성됨' : '해당 카메라 없음'}
               </div>
-              {cam.alert && <AlertTriangle size={12} color="#ef4444" />}
-              {cam.persons > 0 && (
-                <span className="mon-person-badge">{cam.persons}</span>
-              )}
-            </button>
-          ))}
-          {filteredList.length === 0 && (
-            <div style={{ padding: '16px 8px', textAlign: 'center', color: '#334155', fontSize: 11 }}>
-              카메라가 없습니다
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* 선택된 카메라 정보 */}
+        {/* 선택 카메라 정보 */}
         {selectedCam && (
           <div className="mon-cam-detail">
             <div className="mon-detail-title">카메라 정보</div>
@@ -209,19 +327,25 @@ export default function Monitoring({ user }) {
               <span style={{ color: '#64748b' }}>{selectedCam.location || '—'}</span>
             </div>
             <div className="mon-detail-row"><span>상태</span>
-              <span style={{ color: statusColor[selectedCam.status] }}>{statusLabel[selectedCam.status]}</span>
+              <span style={{ color: STATUS_COLOR[selectedCam.status] }}>{STATUS_LABEL[selectedCam.status]}</span>
             </div>
           </div>
         )}
       </aside>
 
-      {/* 메인 그리드 + PTZ */}
+      {/* ── 메인 그리드 + PTZ ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
-        {/* 레이아웃 선택 툴바 */}
+
+        {/* 툴바 */}
         <div className="mon-toolbar">
           <div className="section-title">
             <Camera size={14} color="#00d4ff" />
             <span>실시간 모니터링</span>
+            {scheduledCams.length > 0 && (
+              <span className="section-badge" style={{ background: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.25)', color: '#10b981' }}>
+                편성 {scheduledCams.length}채널
+              </span>
+            )}
             <div className="live-indicator" style={{ marginLeft: 4 }}>
               <span className="live-dot sm" /> LIVE
             </div>
@@ -234,7 +358,7 @@ export default function Monitoring({ user }) {
             >
               <Plus size={11} /> 카메라 추가
             </button>
-            <span style={{ fontSize: 11, color: '#475569' }}>레이아웃</span>
+            <span style={{ fontSize: 11, color: '#475569' }}>열 수</span>
             <div className="grid-controls">
               {GRID_LAYOUTS.map((l, i) => (
                 <button key={i} className={`grid-btn ${selectedLayout === i ? 'active' : ''}`}
@@ -248,40 +372,38 @@ export default function Monitoring({ user }) {
         </div>
 
         {/* 카메라 그리드 */}
-        <div className="mon-grid" style={{ gridTemplateColumns: `repeat(${layout.cols}, 1fr)`, gridTemplateRows: `repeat(${Math.ceil(layout.count / layout.cols)}, 1fr)` }}>
+        <div
+          className="mon-grid"
+          style={{
+            gridTemplateColumns: `repeat(${layout.cols}, 1fr)`,
+            gridTemplateRows: `repeat(${rowCount}, 1fr)`,
+            gridAutoRows: '1fr',
+            overflowY: 'auto',
+          }}
+        >
           {displayCams.map((cam, i) => (
-            <CameraFeed key={cam.id} cam={cam} index={i}
+            <CameraFeed
+              key={cam.id}
+              cam={cam}
+              index={i}
               selected={selectedCam?.id === cam.id}
-              onClick={() => setSelectedCam(cam)} />
+              size={monitorSizes[cam.id] || 1}
+              onSizeToggle={() => setCameraSize(cam.id, SIZE_CYCLE[monitorSizes[cam.id] || 1])}
+              onClick={() => setSelectedCam(cam)}
+            />
           ))}
-          {Array.from({ length: emptySlots }).map((_, i) => (
-            <button
-              key={`empty-${i}`}
-              onClick={() => setShowRegisterModal(true)}
-              style={{
-                background: 'rgba(0,212,255,0.03)',
-                border: '1px dashed rgba(0,212,255,0.15)',
-                borderRadius: 10, cursor: 'pointer',
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
-                gap: 8, color: '#334155',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'rgba(0,212,255,0.35)'
-                e.currentTarget.style.background = 'rgba(0,212,255,0.06)'
-                e.currentTarget.style.color = '#00d4ff'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'rgba(0,212,255,0.15)'
-                e.currentTarget.style.background = 'rgba(0,212,255,0.03)'
-                e.currentTarget.style.color = '#334155'
-              }}
-            >
-              <Plus size={20} />
-              <span style={{ fontSize: 11 }}>카메라 추가</span>
-            </button>
-          ))}
+          {displayCams.length === 0 && (
+            <div style={{
+              gridColumn: `span ${layout.cols}`,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              gap: 12, color: '#334155',
+            }}>
+              <Camera size={36} color="#1e293b" />
+              <span style={{ fontSize: 13 }}>편성된 카메라가 없습니다</span>
+              <span style={{ fontSize: 11 }}>왼쪽 목록에서 + 버튼으로 카메라를 추가하세요</span>
+            </div>
+          )}
         </div>
 
         {/* PTZ 컨트롤 */}
