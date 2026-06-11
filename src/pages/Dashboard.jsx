@@ -136,6 +136,7 @@ export default function Dashboard({ user }) {
 
   const layout = LAYOUTS[layoutIdx]
   const displayCameras = accessibleCameras.slice(0, layout.count)
+  const rowCount = Math.ceil(displayCameras.length / layout.cols)
   const onlineCnt = accessibleCameras.filter(c => c.status === 'online').length
   const totalPersons = accessibleCameras.reduce((s, c) => s + (c.persons || 0), 0)
   const alertVehicles = vehicles.filter(v => v.isBlacklist).length
@@ -172,7 +173,7 @@ export default function Dashboard({ user }) {
               ))}
             </div>
           </div>
-          <div className="cam-grid-layout" style={{ gridTemplateColumns: `repeat(${layout.cols}, 1fr)` }}>
+          <div className="cam-grid-layout" style={{ gridTemplateColumns: `repeat(${layout.cols}, 1fr)`, gridTemplateRows: `repeat(${rowCount}, 1fr)` }}>
             {displayCameras.map((cam, i) => <CameraFeed key={cam.id} cam={cam} index={i} />)}
           </div>
         </section>

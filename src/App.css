@@ -330,7 +330,9 @@
   display: grid;
   grid-template-columns: 1fr 240px;
   gap: 14px;
+  flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* ── 섹션 공통 ── */
@@ -342,6 +344,11 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 0;
+}
+
+.cam-section {
+  overflow: hidden;
 }
 
 .section-header {
@@ -405,10 +412,18 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .cam-card {
   animation: fade-up 0.5s ease both;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
 }
 
 .cam-feed {
@@ -416,6 +431,7 @@
   border-radius: 8px;
   overflow: hidden;
   aspect-ratio: 16/10;
+  width: min(100cqw, calc(100cqh * 1.6));
   cursor: pointer;
   border: 1px solid rgba(255,255,255,0.05);
   transition: border-color 0.2s;
@@ -586,6 +602,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+  flex-shrink: 0;
 }
 
 /* ── 차트 ── */
@@ -764,6 +781,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px 14px;
+  flex-shrink: 0;
 }
 
 .mon-grid {
@@ -771,11 +789,17 @@
   gap: 8px;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .mon-cam-card {
   animation: fade-up 0.4s ease both;
   cursor: pointer;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
 }
 .mon-cam-card.selected .cam-feed { border-color: rgba(0,212,255,0.5); box-shadow: 0 0 12px rgba(0,212,255,0.2); }
 
@@ -810,6 +834,7 @@
   display: flex;
   align-items: flex-start;
   gap: 24px;
+  flex-shrink: 0;
 }
 
 .mon-ptz { display: flex; flex-direction: column; }

@@ -248,7 +248,7 @@ export default function Monitoring({ user }) {
         </div>
 
         {/* 카메라 그리드 */}
-        <div className="mon-grid" style={{ gridTemplateColumns: `repeat(${layout.cols}, 1fr)` }}>
+        <div className="mon-grid" style={{ gridTemplateColumns: `repeat(${layout.cols}, 1fr)`, gridTemplateRows: `repeat(${Math.ceil(layout.count / layout.cols)}, 1fr)` }}>
           {displayCams.map((cam, i) => (
             <CameraFeed key={cam.id} cam={cam} index={i}
               selected={selectedCam?.id === cam.id}
@@ -265,7 +265,7 @@ export default function Monitoring({ user }) {
                 display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center',
                 gap: 8, color: '#334155',
-                transition: 'all 0.2s', minHeight: 80,
+                transition: 'all 0.2s',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'rgba(0,212,255,0.35)'
