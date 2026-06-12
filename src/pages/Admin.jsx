@@ -4,7 +4,7 @@ import {
   Search, Plus, Trash2, LogOut, Lock, Unlock,
   CheckCircle, XCircle, AlertTriangle,
   Monitor, MapPin, ChevronDown, Save, X,
-  UserPlus, ShieldAlert, Mail, Building2,
+  UserPlus, ShieldAlert, Mail, Building2, FileText,
 } from 'lucide-react'
 
 // ── Mock Data ──────────────────────────────────────────────────
@@ -82,8 +82,9 @@ const SIDEBAR_GROUPS = [
   {
     key: 'settings-mgmt', label: '설정 관리', Icon: Shield,
     items: [
-      { key: 'perms',    label: '권한 부여',  Icon: Key    },
-      { key: 'security', label: '보안 설정',  Icon: Shield },
+      { key: 'perms',    label: '권한 부여',      Icon: Key      },
+      { key: 'terms',    label: '이용 약관 관리',  Icon: FileText },
+      { key: 'security', label: '보안 설정',       Icon: Shield   },
     ],
   },
 ]
@@ -95,8 +96,8 @@ const ADMIN_LEVEL_CFG = {
 }
 
 const TAB_ACCESS = {
-  '총관리자':  ['users', 'perms', 'history', 'audit', 'sessions', 'security', 'admins'],
-  '운영관리자': ['users', 'perms', 'history', 'audit', 'sessions'],
+  '총관리자':  ['users', 'perms', 'terms', 'history', 'audit', 'sessions', 'security', 'admins'],
+  '운영관리자': ['users', 'perms', 'terms', 'history', 'audit', 'sessions'],
   '조회관리자': ['history', 'audit'],
 }
 
@@ -109,6 +110,13 @@ const INIT_SECURITY = {
   sessionTimeoutMinutes: 30,
   maxFailedLogins: 5,
   ipWhitelist: ['211.234.0.0/16', '203.45.0.0/16'],
+}
+
+const INIT_TERMS = {
+  version: '1.0.0',
+  effectiveDate: '2026-01-01',
+  content: '제1조 (목적)\n이 약관은 SmartEye CCTV 관제 플랫폼(이하 "서비스")의 이용 조건 및 절차, 회사와 이용자의 권리·의무 및 책임 사항을 규정함을 목적으로 합니다.\n\n제2조 (정의)\n1. "서비스"란 회사가 제공하는 CCTV 관제 및 AI 분석 플랫폼 일체를 의미합니다.\n2. "이용자"란 본 약관에 동의하고 서비스를 이용하는 자를 의미합니다.\n3. "관리자"란 이용자 중 서비스의 설정 및 관리 권한을 부여받은 자를 의미합니다.\n\n제3조 (약관의 효력 및 변경)\n1. 이 약관은 서비스 이용을 원하는 모든 이용자에게 효력이 있습니다.\n2. 회사는 필요한 경우 관련 법령을 위반하지 않는 범위 내에서 약관을 변경할 수 있습니다.\n3. 약관이 변경될 경우 시행일 7일 전에 공지합니다.\n\n제4조 (개인정보 보호)\n회사는 이용자의 개인정보를 보호하기 위해 개인정보처리방침을 수립하고 준수합니다.\n\n제5조 (면책 조항)\n회사는 천재지변, 불가항력적 사유로 인한 서비스 중단에 대해 책임을 지지 않습니다.',
+  published: true,
 }
 
 // ── Config ─────────────────────────────────────────────────────
@@ -211,8 +219,11 @@ export default function Admin({ user, onLogout }) {
   const [users, setUsers]       = useState(INIT_USERS)
   const [sessions, setSessions] = useState(INIT_SESSIONS)
   const [auditLog, setAuditLog] = useState(INIT_AUDIT)
-  const [security, setSecurity] = useState(INIT_SECURITY)
-  const [perms, setPerms]       = useState(PERM_DEFAULT)
+  const [security, setSecurity]               = useState(INIT_SECURITY)
+  const [pendingSecurity, setPendingSecurity] = useState(INIT_SECURITY)
+  const [terms, setTerms]                     = useState(INIT_TERMS)
+  const [pendingTerms, setPendingTerms]       = useState(INIT_TERMS)
+  const [perms, setPerms]                     = useState(PERM_DEFAULT)
   const [pendingPerms, setPendingPerms] = useState(PERM_DEFAULT)
   const [permsChanged, setPermsChanged] = useState(false)
   const [newIp, setNewIp]       = useState('')
@@ -252,6 +263,9 @@ export default function Admin({ user, onLogout }) {
   }, [tab])
 
   // Computed
+  const securityChanged = JSON.stringify(pendingSecurity) !== JSON.stringify(security)
+  const termsChanged    = JSON.stringify(pendingTerms)    !== JSON.stringify(terms)
+
   const lockedCount   = users.filter(u => u.locked).length
   const inactiveCount = users.filter(u => {
     const diff = (new Date('2026-06-05') - new Date(u.lastLogin.replace(' ', 'T'))) / 86400000
@@ -349,6 +363,20 @@ export default function Admin({ user, onLogout }) {
     pushAudit('UPDATE', a?.name, `관리자 등급 변경: ${a?.adminLevel} → ${newLevel}`)
     setEditingAdminLevel(null)
   }
+
+  const applySecurity = () => {
+    setSecurity(pendingSecurity)
+    pushAudit('UPDATE', '보안 설정', '보안 정책 변경 사항 DB 적용 완료')
+  }
+
+  const resetPendingSecurity = () => setPendingSecurity(security)
+
+  const applyTerms = () => {
+    setTerms(pendingTerms)
+    pushAudit('UPDATE', '이용 약관', `이용 약관 v${pendingTerms.version} 게시 완료`)
+  }
+
+  const resetPendingTerms = () => setPendingTerms(terms)
 
   const toggleCompanyOpt = (name, key) => {
     setCompanyLoginOptions(prev => prev.map(c => c.name === name ? { ...c, [key]: !c[key] } : c))
@@ -756,36 +784,6 @@ export default function Admin({ user, onLogout }) {
                 </div>
                 <div style={{ fontSize: 11, color: '#1e3a5f', textAlign: 'right' }}>※ 클릭하여 토글 후 [적용] 버튼을 눌러야 DB에 반영됩니다.</div>
               </Card>
-
-              <Card title="사용자별 보안 레벨" icon={Shield} iconColor="#10b981">
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={S.table}>
-                    <thead>
-                      <tr>
-                        <Th>사용자</Th><Th>역할</Th><Th>보안 레벨</Th><Th>접근 범위</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map(u => {
-                        const lv = u.max_security_level
-                        const color = lv === 3 ? '#ef4444' : lv === 2 ? '#f59e0b' : '#10b981'
-                        return (
-                          <tr key={u.id}>
-                            <Td style={{ color: '#e2e8f0', fontWeight: 500 }}>{u.name}</Td>
-                            <Td><RoleBadge role={u.role} /></Td>
-                            <Td>
-                              <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 20, background: `${color}15`, border: `1px solid ${color}40`, color, fontWeight: 700 }}>Lv.{lv}</span>
-                            </Td>
-                            <Td style={{ fontSize: 11, color: '#64748b' }}>
-                              {lv === 3 ? '전체 카메라' : lv === 2 ? 'Lv.1~2 카메라' : 'Lv.1 카메라만'}
-                            </Td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
             </>
           )}
 
@@ -939,18 +937,25 @@ export default function Admin({ user, onLogout }) {
           {/* ════ 탭: 보안 설정 ════ */}
           {tab === 'security' && (
             <>
+              {securityChanged && (
+                <div style={{ fontSize: 11, color: '#f59e0b', padding: '6px 12px', background: 'rgba(245,158,11,0.08)', borderRadius: 7, border: '1px solid rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={12} color="#f59e0b" />
+                  변경 사항이 있습니다. [적용] 버튼을 눌러야 DB에 반영됩니다.
+                </div>
+              )}
+
               <Card title="비밀번호 정책" icon={Key} iconColor="#8b5cf6">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #1e2d3d' }}>
                     <div>
                       <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 500 }}>최소 비밀번호 길이</div>
-                      <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>현재: {security.minPasswordLength}자</div>
+                      <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>현재: {pendingSecurity.minPasswordLength}자</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <input type="range" min={6} max={20} value={security.minPasswordLength}
-                        onChange={e => setSecurity(p => ({ ...p, minPasswordLength: +e.target.value }))}
+                      <input type="range" min={6} max={20} value={pendingSecurity.minPasswordLength}
+                        onChange={e => setPendingSecurity(p => ({ ...p, minPasswordLength: +e.target.value }))}
                         style={{ width: 120, accentColor: '#8b5cf6' }} />
-                      <span style={{ fontFamily: 'Share Tech Mono', color: '#8b5cf6', fontSize: 15, minWidth: 26 }}>{security.minPasswordLength}</span>
+                      <span style={{ fontFamily: 'Share Tech Mono', color: '#8b5cf6', fontSize: 15, minWidth: 26 }}>{pendingSecurity.minPasswordLength}</span>
                     </div>
                   </div>
                   {[
@@ -963,21 +968,21 @@ export default function Admin({ user, onLogout }) {
                         <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 500 }}>{label}</div>
                         <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{desc}</div>
                       </div>
-                      <button onClick={() => setSecurity(p => ({ ...p, [key]: !p[key] }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                        {security[key] ? <CheckCircle size={23} color="#10b981" /> : <XCircle size={23} color="#1e2d3d" />}
+                      <button onClick={() => setPendingSecurity(p => ({ ...p, [key]: !p[key] }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        {pendingSecurity[key] ? <CheckCircle size={23} color="#10b981" /> : <XCircle size={23} color="#1e2d3d" />}
                       </button>
                     </div>
                   ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12 }}>
                     <div>
                       <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 500 }}>비밀번호 만료 주기</div>
-                      <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>현재: {security.passwordExpireDays}일마다 변경</div>
+                      <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>현재: {pendingSecurity.passwordExpireDays}일마다 변경</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <input type="range" min={30} max={365} step={30} value={security.passwordExpireDays}
-                        onChange={e => setSecurity(p => ({ ...p, passwordExpireDays: +e.target.value }))}
+                      <input type="range" min={30} max={365} step={30} value={pendingSecurity.passwordExpireDays}
+                        onChange={e => setPendingSecurity(p => ({ ...p, passwordExpireDays: +e.target.value }))}
                         style={{ width: 120, accentColor: '#8b5cf6' }} />
-                      <span style={{ fontFamily: 'Share Tech Mono', color: '#8b5cf6', fontSize: 13, minWidth: 40 }}>{security.passwordExpireDays}일</span>
+                      <span style={{ fontFamily: 'Share Tech Mono', color: '#8b5cf6', fontSize: 13, minWidth: 40 }}>{pendingSecurity.passwordExpireDays}일</span>
                     </div>
                   </div>
                 </div>
@@ -989,19 +994,19 @@ export default function Admin({ user, onLogout }) {
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
                         <span style={{ color: '#e2e8f0', fontWeight: 500 }}>세션 타임아웃</span>
-                        <span style={{ fontFamily: 'Share Tech Mono', color: '#00d4ff' }}>{security.sessionTimeoutMinutes}분</span>
+                        <span style={{ fontFamily: 'Share Tech Mono', color: '#00d4ff' }}>{pendingSecurity.sessionTimeoutMinutes}분</span>
                       </div>
-                      <input type="range" min={10} max={120} step={10} value={security.sessionTimeoutMinutes}
-                        onChange={e => setSecurity(p => ({ ...p, sessionTimeoutMinutes: +e.target.value }))}
+                      <input type="range" min={10} max={120} step={10} value={pendingSecurity.sessionTimeoutMinutes}
+                        onChange={e => setPendingSecurity(p => ({ ...p, sessionTimeoutMinutes: +e.target.value }))}
                         style={{ width: '100%', accentColor: '#00d4ff' }} />
                     </div>
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
                         <span style={{ color: '#e2e8f0', fontWeight: 500 }}>로그인 실패 잠금 횟수</span>
-                        <span style={{ fontFamily: 'Share Tech Mono', color: '#ef4444' }}>{security.maxFailedLogins}회</span>
+                        <span style={{ fontFamily: 'Share Tech Mono', color: '#ef4444' }}>{pendingSecurity.maxFailedLogins}회</span>
                       </div>
-                      <input type="range" min={3} max={10} value={security.maxFailedLogins}
-                        onChange={e => setSecurity(p => ({ ...p, maxFailedLogins: +e.target.value }))}
+                      <input type="range" min={3} max={10} value={pendingSecurity.maxFailedLogins}
+                        onChange={e => setPendingSecurity(p => ({ ...p, maxFailedLogins: +e.target.value }))}
                         style={{ width: '100%', accentColor: '#ef4444' }} />
                     </div>
                   </div>
@@ -1009,10 +1014,10 @@ export default function Admin({ user, onLogout }) {
 
                 <Card title="IP 화이트리스트" icon={Shield} iconColor="#f59e0b">
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {security.ipWhitelist.map((ip, i) => (
+                    {pendingSecurity.ipWhitelist.map((ip, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 6, border: '1px solid #1e2d3d' }}>
                         <span style={{ fontFamily: 'Share Tech Mono', fontSize: 11, color: '#94a3b8' }}>{ip}</span>
-                        <button style={S.iconBtn} onClick={() => setSecurity(p => ({ ...p, ipWhitelist: p.ipWhitelist.filter((_, j) => j !== i) }))}>
+                        <button style={S.iconBtn} onClick={() => setPendingSecurity(p => ({ ...p, ipWhitelist: p.ipWhitelist.filter((_, j) => j !== i) }))}>
                           <X size={11} color="#ef4444" />
                         </button>
                       </div>
@@ -1020,9 +1025,9 @@ export default function Admin({ user, onLogout }) {
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <input style={{ ...S.input, flex: 1 }} placeholder="192.168.1.0/24" value={newIp}
                         onChange={e => setNewIp(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && newIp.trim() && (setSecurity(p => ({ ...p, ipWhitelist: [...p.ipWhitelist, newIp.trim()] })), setNewIp(''))} />
+                        onKeyDown={e => { if (e.key === 'Enter' && newIp.trim()) { setPendingSecurity(p => ({ ...p, ipWhitelist: [...p.ipWhitelist, newIp.trim()] })); setNewIp('') } }} />
                       <button style={S.btn}
-                        onClick={() => { if (newIp.trim()) { setSecurity(p => ({ ...p, ipWhitelist: [...p.ipWhitelist, newIp.trim()] })); setNewIp('') } }}>
+                        onClick={() => { if (newIp.trim()) { setPendingSecurity(p => ({ ...p, ipWhitelist: [...p.ipWhitelist, newIp.trim()] })); setNewIp('') } }}>
                         <Plus size={12} /> 추가
                       </button>
                     </div>
@@ -1057,6 +1062,91 @@ export default function Admin({ user, onLogout }) {
                     </div>
                   </div>
                 ))}
+              </Card>
+
+              {/* 보안 설정 적용 버튼 */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '4px 0' }}>
+                {securityChanged && (
+                  <button style={{ ...S.btn, background: 'transparent', borderColor: '#1e2d3d', color: '#475569', fontSize: 11 }} onClick={resetPendingSecurity}>
+                    <X size={11} /> 되돌리기
+                  </button>
+                )}
+                <button
+                  style={{ ...S.btn, background: securityChanged ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.03)', borderColor: securityChanged ? 'rgba(16,185,129,0.4)' : '#1e2d3d', color: securityChanged ? '#10b981' : '#334155', cursor: securityChanged ? 'pointer' : 'default' }}
+                  onClick={applySecurity}
+                  disabled={!securityChanged}
+                >
+                  <Save size={12} /> 적용
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ════ 탭: 이용 약관 관리 ════ */}
+          {tab === 'terms' && (
+            <>
+              {termsChanged && (
+                <div style={{ fontSize: 11, color: '#f59e0b', padding: '6px 12px', background: 'rgba(245,158,11,0.08)', borderRadius: 7, border: '1px solid rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={12} color="#f59e0b" />
+                  변경 사항이 있습니다. [적용] 버튼을 눌러야 DB에 반영됩니다.
+                </div>
+              )}
+
+              <Card title="이용 약관 관리" icon={FileText} iconColor="#00d4ff">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#475569', marginBottom: 5 }}>버전</div>
+                    <input style={{ ...S.input, width: '100%', boxSizing: 'border-box' }}
+                      placeholder="1.0.0"
+                      value={pendingTerms.version}
+                      onChange={e => setPendingTerms(p => ({ ...p, version: e.target.value }))} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#475569', marginBottom: 5 }}>시행일</div>
+                    <input style={{ ...S.input, width: '100%', boxSizing: 'border-box' }}
+                      placeholder="YYYY-MM-DD"
+                      value={pendingTerms.effectiveDate}
+                      onChange={e => setPendingTerms(p => ({ ...p, effectiveDate: e.target.value }))} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                    <div style={{ fontSize: 11, color: '#475569', marginBottom: 5 }}>게시 상태</div>
+                    <button
+                      onClick={() => setPendingTerms(p => ({ ...p, published: !p.published }))}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600, background: pendingTerms.published ? 'rgba(16,185,129,0.1)' : 'rgba(100,116,139,0.1)', border: `1px solid ${pendingTerms.published ? 'rgba(16,185,129,0.3)' : '#1e2d3d'}`, color: pendingTerms.published ? '#10b981' : '#64748b' }}>
+                      {pendingTerms.published ? <CheckCircle size={13} color="#10b981" /> : <XCircle size={13} color="#64748b" />}
+                      {pendingTerms.published ? '게시됨' : '미게시'}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: '#475569', marginBottom: 5 }}>약관 내용</div>
+                  <textarea
+                    value={pendingTerms.content}
+                    onChange={e => setPendingTerms(p => ({ ...p, content: e.target.value }))}
+                    style={{ ...S.input, width: '100%', boxSizing: 'border-box', minHeight: 280, resize: 'vertical', lineHeight: 1.6, fontFamily: 'inherit' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }}>
+                  <div style={{ fontSize: 11, color: '#334155' }}>
+                    현재 적용 버전: <span style={{ fontFamily: 'Share Tech Mono', color: '#475569' }}>v{terms.version}</span>
+                    {' · '}시행일: <span style={{ fontFamily: 'Share Tech Mono', color: '#475569' }}>{terms.effectiveDate}</span>
+                    {' · '}
+                    <span style={{ color: terms.published ? '#10b981' : '#64748b' }}>{terms.published ? '게시중' : '미게시'}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {termsChanged && (
+                      <button style={{ ...S.btn, background: 'transparent', borderColor: '#1e2d3d', color: '#475569', fontSize: 11 }} onClick={resetPendingTerms}>
+                        <X size={11} /> 되돌리기
+                      </button>
+                    )}
+                    <button
+                      style={{ ...S.btn, background: termsChanged ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.03)', borderColor: termsChanged ? 'rgba(16,185,129,0.4)' : '#1e2d3d', color: termsChanged ? '#10b981' : '#334155', cursor: termsChanged ? 'pointer' : 'default' }}
+                      onClick={applyTerms}
+                      disabled={!termsChanged}
+                    >
+                      <Save size={12} /> 적용
+                    </button>
+                  </div>
+                </div>
               </Card>
             </>
           )}
